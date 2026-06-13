@@ -14,7 +14,7 @@
     </a>
     <nav class="nav">
       <a href="/">Public site</a>
-      <a href="/studio.html">Studio</a>
+      <a href="/studio">Studio</a>
     </nav>
   </header>
 
@@ -24,9 +24,10 @@
       <h1 id="admin-title">Review submissions.</h1>
 
       <form class="admin-login" id="token-form">
-        <input name="password" type="password" autocomplete="current-password" placeholder="Admin password">
+        <input name="password" type="password" autocomplete="current-password" placeholder="Admin password" required>
         <button class="button primary" type="submit">Log in</button>
       </form>
+      <p class="studio-status" id="admin-status" role="status" aria-live="polite">Enter the admin password to view submissions.</p>
 
       <div class="actions">
         <button class="button" id="refresh-pending" type="button">Refresh submissions</button>

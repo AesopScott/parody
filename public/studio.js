@@ -180,7 +180,7 @@ form.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(data.error || "Submit failed");
 
     showToast("Submitted");
-    generatedCaption.textContent = "Submitted to admin approval.";
+    generatedCaption.innerHTML = 'Submitted to the admin approval queue. <a href="/admin">Open Admin</a>.';
     setStatus("Submitted to approval.", "done");
   } catch (error) {
     showToast(error.message);

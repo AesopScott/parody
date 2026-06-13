@@ -22,6 +22,16 @@ function text(value, init = {}) {
   });
 }
 
+function html(value, init = {}) {
+  return new Response(value, {
+    ...init,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      ...(init.headers || {})
+    }
+  });
+}
+
 function unauthorized() {
   return json({ error: "Admin approval token required." }, { status: 401 });
 }
@@ -48,6 +58,125 @@ function slugify(value) {
 function publicOrigin(request) {
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}`;
+}
+
+function studioPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parody AI Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">✱</span>
+      <span>Parody AI Studio</span>
+    </a>
+    <nav class="nav">
+      <a href="/">Public site</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+
+  <main class="studio-workspace">
+    <section class="studio-input-panel" aria-labelledby="studio-title">
+      <p class="eyebrow">Generate a parody</p>
+      <h1 id="studio-title">Upload. Generate. Submit.</h1>
+
+      <form id="studio-form" class="single-studio-form">
+        <label class="upload-box">
+          <span>Upload source image</span>
+          <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
+        </label>
+
+        <label class="direction-line">
+          <span>Give your twist on the output</span>
+          <textarea name="direction" rows="3" maxlength="240" placeholder="Example: make it about executive aura"></textarea>
+        </label>
+
+        <div class="studio-preview" id="preview">
+          <span>No image selected</span>
+        </div>
+
+        <div class="actions">
+          <button class="button primary" type="button" id="generate-button">Generate</button>
+          <button class="button" type="submit" id="submit-button" disabled>Submit</button>
+        </div>
+        <p class="studio-status" id="studio-status" role="status" aria-live="polite">Ready.</p>
+      </form>
+    </section>
+
+    <section class="studio-output-panel" aria-labelledby="output-title">
+      <div class="studio-output-head">
+        <p class="eyebrow">Generated image</p>
+        <h2 id="output-title">Output</h2>
+      </div>
+      <div class="generated-preview" id="generated-preview">
+        <span>Generate to see the parody image.</span>
+      </div>
+      <div class="caption-card studio-result" id="studio-result" hidden>
+        <div class="caption-head">
+          <span>Generated drop</span>
+        </div>
+        <p id="generated-title">Ready for review</p>
+        <p id="generated-caption">Submit sends this to the admin approval queue.</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite">Done</div>
+  <script src="/studio.js"></script>
+</body>
+</html>`;
+}
+
+function adminPage() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parody AI Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">✱</span>
+      <span>Parody AI Admin</span>
+    </a>
+    <nav class="nav">
+      <a href="/">Public site</a>
+      <a href="/studio">Studio</a>
+    </nav>
+  </header>
+
+  <main class="studio-main">
+    <section class="single-studio" aria-labelledby="admin-title">
+      <p class="eyebrow">Approval queue</p>
+      <h1 id="admin-title">Review submissions.</h1>
+
+      <form class="admin-login" id="token-form">
+        <input name="password" type="password" autocomplete="current-password" placeholder="Admin password" required>
+        <button class="button primary" type="submit">Log in</button>
+      </form>
+      <p class="studio-status" id="admin-status" role="status" aria-live="polite">Enter the admin password to view submissions.</p>
+
+      <div class="actions">
+        <button class="button" id="refresh-pending" type="button">Refresh submissions</button>
+      </div>
+
+      <div class="approval-list" id="pending-grid"></div>
+    </section>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite">Done</div>
+  <script src="/admin.js"></script>
+</body>
+</html>`;
 }
 
 async function readIndex(kv, key) {
@@ -419,7 +548,8 @@ async function handleImage(request, env) {
   const url = new URL(request.url);
   const name = decodeURIComponent(url.pathname.replace("/api/images/", ""));
   const key = `image:${name}`;
-  const image = await env.PARODY_DROPS.get(key, "arrayBuffer");
+  const image = await env.PARODY_DROPS.get(key, "arrayBuffer")
+    || await env.PARODY_DROPS.get(`pending-image:${name}`, "arrayBuffer");
   if (!image) return text("Not found", { status: 404 });
   return new Response(image, {
     headers: {
@@ -568,6 +698,8 @@ export default {
       if (url.pathname === "/api/pending" && request.method === "POST") return handleCreatePending(request, env);
       if (url.pathname === "/api/approve" && request.method === "POST") return handleApprove(request, env);
       if (url.pathname === "/api/reject" && request.method === "POST") return handleReject(request, env);
+      if (url.pathname === "/admin") return html(adminPage());
+      if (url.pathname === "/studio") return html(studioPage());
 
       return env.ASSETS.fetch(request);
     } catch (error) {
