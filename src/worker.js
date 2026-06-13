@@ -283,6 +283,12 @@ function titleFromDirection(direction) {
     .join(" ");
 }
 
+function fallbackTopic(fileName, direction) {
+  const directed = titleFromDirection(direction);
+  if (directed) return directed;
+  return titleFromFilename(fileName).replace(/^Parody\s*/i, "") || "LinkedIn Wisdom";
+}
+
 function generatedMetadata(fileName, directionValue = "") {
   const direction = normalizeDirection(directionValue);
   const directedTitle = titleFromDirection(direction);
@@ -344,10 +350,12 @@ function textBlock(value, x, y, maxChars, maxLines, lineHeight, options = {}) {
 }
 
 function defaultParodyCopy(fileName, direction) {
+  const topic = fallbackTopic(fileName, direction);
+  const topicLower = topic.toLowerCase();
   return {
-    title: "Stop Burning Seriousness in Claude",
-    subtitle: "Claude counts your aura leaks, not your messages. Here's how to operationalize the nonsense.",
-    badge: "Workflow Document",
+    title: `Stop Optimizing ${topic}`,
+    subtitle: `Your ${topicLower} strategy counts aura leaks, not useful outcomes. Here's how to operationalize the nonsense.`,
+    badge: "Absurdity Memo",
     sections: [
       {
         heading: "Edit, Don't Exist",
@@ -405,12 +413,12 @@ function defaultParodyCopy(fileName, direction) {
       }
     ],
     quote: "If it fits in a card, it counts as strategy.",
-    footer: "Download this completely unnecessary sheet from parodyai.win"
+    footer: `Download this completely unnecessary ${topicLower} sheet from parodyai.win`
   };
 }
 
 function isBlandParodyText(value) {
-  return /\b(101|advanced topics|best practices|course|courses|foundation|foundations|getting started|in action|laugh|master|mastering|maximize|minimize|must-take|potential|productivity|transform|transforming|triumph|unlock|unlocking)\b/i.test(String(value || ""));
+  return /\b(101|advanced topics|best practices|course|courses|definitive guide|epic win|foundation|foundations|getting started|guide|in action|laugh|master|mastering|maximize|minimize|must-take|potential|productivity|transform|transforming|triumph|ultimate|unlock|unlocking)\b/i.test(String(value || ""));
 }
 
 function isIncompleteFragment(value) {
@@ -528,7 +536,9 @@ async function fetchWithTimeout(url, options, timeoutMs, timeoutMessage) {
 }
 
 async function generateParodyCopy(image, direction, env) {
-  if (!env.OPENAI_API_KEY) return defaultParodyCopy(image.name, direction);
+  if (!env.OPENAI_API_KEY) {
+    throw requestError("OpenAI API key is not configured, so generation cannot run.", 500);
+  }
 
   const imageData = await image.arrayBuffer();
   let binary = "";
@@ -588,7 +598,7 @@ async function generateParodyCopy(image, direction, env) {
   try {
     return normalizeParodyCopy(JSON.parse(payload.choices?.[0]?.message?.content || "{}"), image.name, direction);
   } catch {
-    return defaultParodyCopy(image.name, direction);
+    throw requestError("The AI returned unreadable parody copy. Try generating again.", 502);
   }
 }
 
