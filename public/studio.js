@@ -2,6 +2,7 @@ const form = document.querySelector("#studio-form");
 const fileInput = form.querySelector('input[name="image"]');
 const directionInput = form.querySelector('input[name="direction"]');
 const preview = document.querySelector("#preview");
+const generatedPreview = document.querySelector("#generated-preview");
 const generateButton = document.querySelector("#generate-button");
 const submitButton = document.querySelector("#submit-button");
 const studioStatus = document.querySelector("#studio-status");
@@ -11,6 +12,8 @@ const generatedCaption = document.querySelector("#generated-caption");
 const toast = document.querySelector(".toast");
 
 let generated = null;
+let generatedImageBlob = null;
+let generatedImageUrl = "";
 
 function setStatus(message, state = "") {
   studioStatus.textContent = message;
@@ -32,11 +35,39 @@ function slugify(value) {
     .slice(0, 72);
 }
 
-fileInput.addEventListener("change", () => {
-  const file = fileInput.files?.[0];
+function resetGeneratedOutput(message = "Generate to see the parody image.") {
   generated = null;
+  generatedImageBlob = null;
+  if (generatedImageUrl) URL.revokeObjectURL(generatedImageUrl);
+  generatedImageUrl = "";
   submitButton.disabled = true;
   result.hidden = true;
+  generatedPreview.dataset.state = "";
+  generatedPreview.innerHTML = `<span>${message}</span>`;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [metadata, base64] = dataUrl.split(",");
+  const mimeType = metadata.match(/^data:([^;]+);base64$/)?.[1] || "image/png";
+  const binary = atob(base64 || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+function showGeneratedImage(dataUrl, title) {
+  generatedImageBlob = dataUrlToBlob(dataUrl);
+  if (generatedImageUrl) URL.revokeObjectURL(generatedImageUrl);
+  generatedImageUrl = URL.createObjectURL(generatedImageBlob);
+  generatedPreview.dataset.state = "done";
+  generatedPreview.innerHTML = `<img src="${generatedImageUrl}" alt="${title || "Generated parody image"}">`;
+}
+
+fileInput.addEventListener("change", () => {
+  const file = fileInput.files?.[0];
+  resetGeneratedOutput();
   setStatus(file ? "Ready to generate." : "Ready.");
 
   if (!file) {
@@ -50,8 +81,7 @@ fileInput.addEventListener("change", () => {
 
 directionInput.addEventListener("input", () => {
   if (!generated) return;
-  generated = null;
-  submitButton.disabled = true;
+  resetGeneratedOutput("Direction changed. Generate again.");
   setStatus("Direction changed. Generate again.", "needs-work");
   generatedCaption.textContent = "Direction changed. Generate again before submitting.";
 });
@@ -61,7 +91,15 @@ generateButton.addEventListener("click", () => {
   generateButton.textContent = "Generating...";
   generateButton.setAttribute("aria-busy", "true");
   submitButton.disabled = true;
-  result.hidden = false;
+  result.hidden = true;
+  generatedPreview.dataset.state = "working";
+  generatedPreview.innerHTML = `
+    <div class="output-loading">
+      <span></span>
+      <strong>Generating image...</strong>
+      <small>Reading the upload and applying your twist.</small>
+    </div>
+  `;
   generatedTitle.textContent = "Generating...";
   generatedCaption.textContent = "Reading the image and applying your twist.";
   setStatus("Generating parody...", "working");
@@ -77,7 +115,7 @@ async function generate() {
   if (!file) {
     showToast("Upload an image first");
     setStatus("Upload an image first.", "needs-work");
-    result.hidden = true;
+    resetGeneratedOutput();
     return;
   }
 
@@ -88,15 +126,23 @@ async function generate() {
     method: "POST",
     body: payload
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({ error: "Generate failed" }));
   if (!response.ok) {
     showToast(data.error || "Generate failed");
     setStatus(data.error || "Generate failed.", "needs-work");
+    resetGeneratedOutput("Generation failed. Try again.");
     return;
   }
 
   generated = data;
+  if (!generated.imageDataUrl) {
+    showToast("No image returned");
+    setStatus("No image returned.", "needs-work");
+    resetGeneratedOutput("No image returned. Try again.");
+    return;
+  }
 
+  showGeneratedImage(generated.imageDataUrl, generated.title);
   generatedTitle.textContent = generated.title;
   generatedCaption.textContent = generated.caption;
   result.hidden = false;
@@ -107,8 +153,7 @@ async function generate() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const file = fileInput.files?.[0];
-  if (!file || !generated) {
+  if (!generated || !generatedImageBlob) {
     showToast("Generate first");
     return;
   }
@@ -119,14 +164,19 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const payload = new FormData();
-    payload.set("image", file);
+    const imageName = `${generated.slug || "parody-output"}.png`;
+    payload.set("image", generatedImageBlob, imageName);
     payload.set("direction", directionInput.value.trim());
+    payload.set("title", generated.title || "");
+    payload.set("caption", generated.caption || "");
+    payload.set("shareCaption", generated.shareCaption || "");
+    payload.set("slug", generated.slug || "");
 
     const response = await fetch("/api/pending", {
       method: "POST",
       body: payload
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({ error: "Submit failed" }));
     if (!response.ok) throw new Error(data.error || "Submit failed");
 
     showToast("Submitted");

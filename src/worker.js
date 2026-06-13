@@ -127,6 +127,49 @@ function generatedMetadata(fileName, directionValue = "") {
   };
 }
 
+function imagePrompt(direction) {
+  const twist = normalizeDirection(direction) || "make it a satirical workflow document of absurdity";
+  return [
+    "Create a polished satirical parody image based on the uploaded source image.",
+    "Preserve the recognizable format, density, hierarchy, and infographic/workflow-document feel, but do not copy the original wording.",
+    `Creative twist: ${twist}.`,
+    "Make it read like an absurd LinkedIn AI/productivity workflow sheet.",
+    "Use compact parody labels, fake metrics, confident corporate language, and clean graphic design.",
+    "Avoid real person names, watermarks, and claims that a real company endorsed the parody."
+  ].join(" ");
+}
+
+async function createImageEdit(image, direction, env) {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("Image generation is not configured yet. Add OPENAI_API_KEY as a Worker secret.");
+  }
+
+  const body = new FormData();
+  body.set("model", env.OPENAI_IMAGE_MODEL || "gpt-image-1");
+  body.set("image", image, image.name || "source.png");
+  body.set("prompt", imagePrompt(direction));
+  body.set("size", "1024x1536");
+  body.set("quality", "low");
+  body.set("output_format", "png");
+
+  const response = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`
+    },
+    body
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error?.message || `OpenAI image generation failed with ${response.status}.`);
+  }
+
+  const base64 = payload.data?.[0]?.b64_json;
+  if (!base64) throw new Error("OpenAI did not return an image.");
+  return `data:image/png;base64,${base64}`;
+}
+
 async function handleDrops(request, env) {
   const approved = await readIndex(env.PARODY_DROPS, APPROVED_INDEX);
   const fallback = await readStaticDrops(env, request);
@@ -197,14 +240,18 @@ async function handleCreatePending(request, env) {
   return json({ status: "pending", entry });
 }
 
-async function handleGenerate(request) {
+async function handleGenerate(request, env) {
   const form = await request.formData();
   const image = form.get("image");
   if (!(image instanceof File)) return json({ error: "Image file is required." }, { status: 400 });
   if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
+  if (image.size > MAX_IMAGE_BYTES) return json({ error: "Image is too large." }, { status: 413 });
+  const generated = generatedMetadata(image.name, form.get("direction"));
+  const imageDataUrl = await createImageEdit(image, generated.direction, env);
   return json({
     status: "generated",
-    ...generatedMetadata(image.name, form.get("direction"))
+    ...generated,
+    imageDataUrl
   });
 }
 
@@ -265,16 +312,20 @@ async function handleReject(request, env) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    try {
+      const url = new URL(request.url);
 
-    if (url.pathname === "/api/drops" && request.method === "GET") return handleDrops(request, env);
-    if (url.pathname === "/api/generate" && request.method === "POST") return handleGenerate(request, env);
-    if (url.pathname.startsWith("/api/images/") && request.method === "GET") return handleImage(request, env);
-    if (url.pathname === "/api/pending" && request.method === "GET") return handlePendingList(request, env);
-    if (url.pathname === "/api/pending" && request.method === "POST") return handleCreatePending(request, env);
-    if (url.pathname === "/api/approve" && request.method === "POST") return handleApprove(request, env);
-    if (url.pathname === "/api/reject" && request.method === "POST") return handleReject(request, env);
+      if (url.pathname === "/api/drops" && request.method === "GET") return handleDrops(request, env);
+      if (url.pathname === "/api/generate" && request.method === "POST") return handleGenerate(request, env);
+      if (url.pathname.startsWith("/api/images/") && request.method === "GET") return handleImage(request, env);
+      if (url.pathname === "/api/pending" && request.method === "GET") return handlePendingList(request, env);
+      if (url.pathname === "/api/pending" && request.method === "POST") return handleCreatePending(request, env);
+      if (url.pathname === "/api/approve" && request.method === "POST") return handleApprove(request, env);
+      if (url.pathname === "/api/reject" && request.method === "POST") return handleReject(request, env);
 
-    return env.ASSETS.fetch(request);
+      return env.ASSETS.fetch(request);
+    } catch (error) {
+      return json({ error: error.message || "Request failed." }, { status: 500 });
+    }
   }
 };

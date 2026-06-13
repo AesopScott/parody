@@ -18,8 +18,8 @@
     </nav>
   </header>
 
-  <main class="studio-main">
-    <section class="single-studio" aria-labelledby="studio-title">
+  <main class="studio-workspace">
+    <section class="studio-input-panel" aria-labelledby="studio-title">
       <p class="eyebrow">Generate a parody</p>
       <h1 id="studio-title">Upload. Generate. Submit.</h1>
 
@@ -44,7 +44,16 @@
         </div>
         <p class="studio-status" id="studio-status" role="status" aria-live="polite">Ready.</p>
       </form>
+    </section>
 
+    <section class="studio-output-panel" aria-labelledby="output-title">
+      <div class="studio-output-head">
+        <p class="eyebrow">Generated image</p>
+        <h2 id="output-title">Output</h2>
+      </div>
+      <div class="generated-preview" id="generated-preview">
+        <span>Generate to see the parody image.</span>
+      </div>
       <div class="caption-card studio-result" id="studio-result" hidden>
         <div class="caption-head">
           <span>Generated drop</span>
