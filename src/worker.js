@@ -164,47 +164,64 @@ function textBlock(value, x, y, maxChars, maxLines, lineHeight, options = {}) {
 }
 
 function defaultParodyCopy(fileName, direction) {
-  const metadata = generatedMetadata(fileName, direction);
   return {
-    title: metadata.title.replace(/^Parody:\s*/i, ""),
-    subtitle: "A practical framework for converting normal judgment into operational theater.",
+    title: "Stop Burning Seriousness in Claude",
+    subtitle: "Claude counts your aura leaks, not your messages. Here's how to operationalize the nonsense.",
     badge: "Workflow Document",
     sections: [
       {
-        heading: "Draft the Vibe",
-        body: "Turn one loose feeling into a six-step system before anyone asks for evidence.",
+        heading: "Edit, Don't Exist",
+        metric: "37% less personality load",
+        body: "Revise the last thing you almost meant until it becomes a reusable stance.",
+        protocol: "Protocol: one feeling in, four bullet points out.",
         wastes: "Direct speech",
-        saves: "Strategic fog"
+        saves: "Strategic fog",
+        slogan: "Never reply. Rebrand."
       },
       {
-        heading: "Add a Governance Layer",
-        body: "Rename hesitation as oversight and let the diagram do the emotional labor.",
+        heading: "Batch the Cringe",
+        metric: "3 regrets = 1 roadmap",
+        body: "Combine tiny embarrassments into a single executive operating model.",
+        protocol: "Load once. Reference forever. Apologize never.",
         wastes: "One honest sentence",
-        saves: "Three committees"
+        saves: "Three committees",
+        slogan: "Centralize the discomfort."
       },
       {
         heading: "Quantify the Aura",
+        metric: "20x certainty per vibe",
         body: "Use precise numbers for things nobody has successfully measured.",
+        protocol: "If it has a decimal, it has authority.",
         wastes: "Human nuance",
-        saves: "Dashboard confidence"
+        saves: "Dashboard confidence",
+        slogan: "Measure the unmeasurable."
       },
       {
-        heading: "Batch the Apologies",
-        body: "Convert every awkward follow-up into a reusable accountability pipeline.",
+        heading: "Trim Human Context",
+        metric: "5x fewer clarifying texts",
+        body: "Disable empathy connectors unless the stakeholder is actively watching.",
+        protocol: "Calendar on. Feelings off. Search optional.",
         wastes: "Being normal",
-        saves: "Process maturity"
+        saves: "Process maturity",
+        slogan: "Load light. Seem deep."
       },
       {
-        heading: "Protect Founder Energy",
-        body: "Move small decisions into a framework so the calendar feels visionary.",
+        heading: "Pace Your Delusion",
+        metric: "90 min bursts of destiny",
+        body: "Split one ordinary workday into three premium transformation windows.",
+        protocol: "Reset confidence every time Slack goes quiet.",
         wastes: "Lunch choice",
-        saves: "Executive bandwidth"
+        saves: "Executive bandwidth",
+        slogan: "Don't sprint. Spiral."
       },
       {
-        heading: "Publish the Matrix",
-        body: "If the insight feels thin, increase the border radius and add a footer.",
+        heading: "Pin a Reusable Self",
+        metric: "1x base identity, 4x polish",
+        body: "Lock a voice, a posture, and a fake preference file for all future sincerity.",
+        protocol: "Switch from Human to Thought Leader in one click.",
         wastes: "Self-awareness",
-        saves: "LinkedIn reach"
+        saves: "LinkedIn reach",
+        slogan: "Pick your voice. Reuse forever."
       }
     ],
     quote: "If it fits in a card, it counts as strategy.",
@@ -212,22 +229,32 @@ function defaultParodyCopy(fileName, direction) {
   };
 }
 
+function isBlandParodyText(value) {
+  return /\b(101|advanced topics|best practices|course|courses|foundation|foundations|getting started|in action|laugh|master|mastering|maximize|minimize|must-take|potential|productivity|transform|transforming|triumph|unlock|unlocking)\b/i.test(String(value || ""));
+}
+
 function normalizeParodyCopy(value, fileName, direction) {
   const fallback = defaultParodyCopy(fileName, direction);
   const sections = Array.isArray(value?.sections) ? value.sections : [];
+  const title = isBlandParodyText(value?.title) ? fallback.title : String(value?.title || fallback.title);
+  const subtitle = isBlandParodyText(value?.subtitle) ? fallback.subtitle : String(value?.subtitle || fallback.subtitle);
   return {
     ...fallback,
     ...value,
-    title: String(value?.title || fallback.title).slice(0, 90),
-    subtitle: String(value?.subtitle || fallback.subtitle).slice(0, 170),
+    title: title.slice(0, 90),
+    subtitle: subtitle.slice(0, 170),
     badge: String(value?.badge || fallback.badge).slice(0, 34),
     sections: fallback.sections.map((fallbackSection, index) => {
       const section = sections[index] || {};
+      const heading = isBlandParodyText(section.heading) ? fallbackSection.heading : String(section.heading || fallbackSection.heading);
       return {
-        heading: String(section.heading || fallbackSection.heading).slice(0, 42),
-        body: String(section.body || fallbackSection.body).slice(0, 145),
+        heading: heading.slice(0, 42),
+        metric: String(section.metric || fallbackSection.metric).slice(0, 42),
+        body: String(section.body || fallbackSection.body).slice(0, 135),
+        protocol: String(section.protocol || fallbackSection.protocol).slice(0, 70),
         wastes: String(section.wastes || fallbackSection.wastes).slice(0, 34),
-        saves: String(section.saves || fallbackSection.saves).slice(0, 34)
+        saves: String(section.saves || fallbackSection.saves).slice(0, 34),
+        slogan: String(section.slogan || fallbackSection.slogan).slice(0, 45)
       };
     }),
     quote: String(value?.quote || fallback.quote).slice(0, 100),
@@ -240,20 +267,25 @@ function renderParodySvg(copy, metadata) {
     const col = index % 2;
     const row = Math.floor(index / 2);
     const x = 72 + col * 455;
-    const y = 370 + row * 285;
+    const y = 335 + row * 315;
     return `
       <g>
-        <rect x="${x}" y="${y}" width="405" height="240" rx="18" fill="#fffaf3" stroke="#e1d1c4" stroke-width="3"/>
+        <rect x="${x}" y="${y}" width="405" height="285" rx="18" fill="#fffaf3" stroke="#e1d1c4" stroke-width="3"/>
         <circle cx="${x + 35}" cy="${y + 38}" r="19" fill="#f04418"/>
         <text x="${x + 35}" y="${y + 47}" text-anchor="middle" font-size="25" font-weight="950" fill="#fff">${index + 1}</text>
         ${textBlock(section.heading, x + 70, y + 38, 20, 2, 28, { size: 27, weight: 950 })}
-        ${textBlock(section.body, x + 28, y + 103, 31, 3, 24, { size: 19, weight: 650, fill: "#303640" })}
-        <rect x="${x + 22}" y="${y + 172}" width="169" height="48" rx="9" fill="#fff2eb"/>
-        <rect x="${x + 214}" y="${y + 172}" width="169" height="48" rx="9" fill="#edf7ef"/>
-        <text x="${x + 34}" y="${y + 193}" font-size="15" font-weight="950" fill="#f04418">WASTES</text>
-        <text x="${x + 226}" y="${y + 193}" font-size="15" font-weight="950" fill="#167a4b">SAVES</text>
-        ${textBlock(section.wastes, x + 34, y + 214, 15, 1, 18, { size: 16, weight: 800 })}
-        ${textBlock(section.saves, x + 226, y + 214, 15, 1, 18, { size: 16, weight: 800 })}
+        <rect x="${x + 25}" y="${y + 76}" width="354" height="28" rx="14" fill="#fff2eb"/>
+        ${textBlock(section.metric, x + 44, y + 96, 33, 1, 18, { size: 15, weight: 950, fill: "#f04418" })}
+        ${textBlock(section.body, x + 28, y + 130, 32, 2, 23, { size: 18, weight: 700, fill: "#303640" })}
+        <rect x="${x + 24}" y="${y + 176}" width="357" height="28" rx="8" fill="#f4efe8"/>
+        ${textBlock(section.protocol, x + 36, y + 196, 42, 1, 18, { size: 14, weight: 850, fill: "#5b6472" })}
+        <rect x="${x + 22}" y="${y + 214}" width="169" height="42" rx="9" fill="#fff2eb"/>
+        <rect x="${x + 214}" y="${y + 214}" width="169" height="42" rx="9" fill="#edf7ef"/>
+        <text x="${x + 34}" y="${y + 232}" font-size="14" font-weight="950" fill="#f04418">WASTES</text>
+        <text x="${x + 226}" y="${y + 232}" font-size="14" font-weight="950" fill="#167a4b">SAVES</text>
+        ${textBlock(section.wastes, x + 34, y + 250, 15, 1, 18, { size: 15, weight: 800 })}
+        ${textBlock(section.saves, x + 226, y + 250, 15, 1, 18, { size: 15, weight: 800 })}
+        ${textBlock(section.slogan, x + 28, y + 278, 31, 1, 18, { size: 17, weight: 950 })}
       </g>
     `;
   }).join("");
@@ -302,17 +334,32 @@ async function generateParodyCopy(image, direction, env) {
     body: JSON.stringify({
       model: env.OPENAI_TEXT_MODEL || "gpt-4o-mini",
       response_format: { type: "json_object" },
+      temperature: 0.9,
       messages: [
         {
           role: "system",
-          content: "Return JSON only. Create readable parody copy for a dense LinkedIn-style workflow infographic. Preserve the source's rough structure but make all wording new, satirical, compact, and clean."
+          content: [
+            "Return JSON only. Create readable parody copy for a dense LinkedIn-style workflow infographic.",
+            "Target: LinkedIn AI productivity theater, fake precision, tool worship, and corporate self-optimization.",
+            "The parody must be obviously funny at the class/card-title level, not merely plausible.",
+            "Avoid legitimate course names or helpful training titles. Banned examples: Claude 101, Framework & Foundations, Advanced Topics, Claude Code in Action, Master AI, Best Practices, Getting Started.",
+            "Use absurd operational verbs, fake metrics, arbitrary thresholds, faux-governance language, and confident slogans.",
+            "Preserve the source's rough skeleton, but make every word new and satirical."
+          ].join(" ")
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Twist: ${normalizeDirection(direction) || "productivity theater"}. Return keys: title, subtitle, badge, sections array of exactly 6 objects with heading/body/wastes/saves, quote, footer. Keep every field short because it will be rendered into fixed cards.`
+              text: [
+                `Twist: ${normalizeDirection(direction) || "productivity theater"}.`,
+                "Return keys: title, subtitle, badge, sections array of exactly 6 objects with heading, metric, body, protocol, wastes, saves, slogan, plus quote and footer.",
+                "Headings should sound like parody workflow commandments: e.g. Edit, Don't Exist; Batch the Cringe; Quantify the Aura; Trim Human Context; Pace Your Delusion; Pin a Reusable Self.",
+                "Do not write real class titles. Do not be useful first; be funny first, then formatted.",
+                "Make each card dense with one fake metric, one concrete absurd protocol, and one punchy slogan.",
+                "Keep fields short enough for fixed infographic cards."
+              ].join(" ")
             },
             { type: "image_url", image_url: { url: dataUrl } }
           ]
