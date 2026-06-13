@@ -156,7 +156,7 @@ async function generate() {
 
     showGeneratedImage(generated.imageDataUrl, generated.title);
     generatedTitle.textContent = generated.title;
-    generatedCaption.textContent = generated.caption;
+    generatedCaption.textContent = `${generated.caption} Build ${generated.generationId || "fresh"}.`;
     result.hidden = false;
     submitButton.disabled = false;
     setStatus("Generated. Review, then submit.", "done");

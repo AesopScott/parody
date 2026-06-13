@@ -2,7 +2,7 @@ const APPROVED_INDEX = "approved:index";
 const PENDING_INDEX = "pending:index";
 const MAX_IMAGE_BYTES = 1024 * 1024 * 8;
 const OPENAI_TIMEOUT_MS = 35000;
-const APP_VERSION = "0.1.3";
+const APP_VERSION = "0.1.5";
 
 function json(value, init = {}) {
   return new Response(JSON.stringify(value, null, 2), {
@@ -354,73 +354,75 @@ function textBlock(value, x, y, maxChars, maxLines, lineHeight, options = {}) {
 function defaultParodyCopy(fileName, direction) {
   const topic = fallbackTopic(fileName, direction);
   const topicLower = topic.toLowerCase();
+  const shortTopic = topic.split(" ").slice(0, 3).join(" ");
   return {
     title: `Stop Optimizing ${topic}`,
     subtitle: `Your ${topicLower} strategy counts aura leaks, not useful outcomes. Here's how to operationalize the nonsense.`,
     badge: "Absurdity Memo",
+    sectionLabel: `6 Fake Systems for ${shortTopic}`,
     sections: [
       {
-        heading: "Edit, Don't Exist",
-        metric: "37% less personality load",
-        body: "Revise the last thing you almost meant until it becomes a reusable stance.",
-        protocol: "Protocol: one feeling in, four bullet points out.",
-        wastes: "Direct speech",
-        saves: "Strategic fog",
-        slogan: "Never reply. Rebrand."
+        heading: `Audit the ${shortTopic} Aura`,
+        metric: "37% more ceremonial certainty",
+        body: `Inspect ${topicLower} for imaginary leverage points and call it governance.`,
+        protocol: "Assign one vibe owner before any useful work begins.",
+        wastes: "Plain intent",
+        saves: "Executive fog",
+        slogan: "If it glows, it scales."
       },
       {
-        heading: "Batch the Cringe",
-        metric: "3 regrets = 1 roadmap",
-        body: "Combine tiny embarrassments into a single executive operating model.",
-        protocol: "Load once. Reference forever. Apologize never.",
-        wastes: "One honest sentence",
-        saves: "Three committees",
+        heading: "Batch the Little Lies",
+        metric: "3 excuses = 1 roadmap",
+        body: `Bundle every ${topicLower} hesitation into a confident operating model.`,
+        protocol: "Convert friction into a dashboard before anyone asks why.",
+        wastes: "A normal pause",
+        saves: "Meeting oxygen",
         slogan: "Centralize the discomfort."
       },
       {
-        heading: "Quantify the Aura",
-        metric: "20x certainty per vibe",
-        body: "Use precise numbers for things nobody has successfully measured.",
+        heading: "Quantify the Vibes",
+        metric: "20x confidence per decimal",
+        body: `Invent ${topicLower} metrics precise enough to survive a slide deck.`,
         protocol: "If it has a decimal, it has authority.",
         wastes: "Human nuance",
-        saves: "Dashboard confidence",
-        slogan: "Measure the unmeasurable."
+        saves: "Spreadsheet drama",
+        slogan: "Measure what fled the room."
       },
       {
-        heading: "Trim Human Context",
-        metric: "5x fewer clarifying texts",
-        body: "Disable empathy connectors unless the stakeholder is actively watching.",
+        heading: "Remove the Human Part",
+        metric: "85% less inconvenient meaning",
+        body: `Strip ${topicLower} down until only roles, rituals, and fake urgency remain.`,
         protocol: "Calendar on. Feelings off. Search optional.",
         wastes: "Being normal",
-        saves: "Process maturity",
-        slogan: "Load light. Seem deep."
+        saves: "Process theater",
+        slogan: "Less context. More posture."
       },
       {
-        heading: "Pace Your Delusion",
+        heading: "Pace the Delusion",
         metric: "90 min bursts of destiny",
-        body: "Split one ordinary workday into three premium transformation windows.",
-        protocol: "Reset confidence every time Slack goes quiet.",
-        wastes: "Lunch choice",
-        saves: "Executive bandwidth",
+        body: `Schedule ${topicLower} in premium transformation windows no one requested.`,
+        protocol: "Reset confidence every time the room gets quiet.",
+        wastes: "A real decision",
+        saves: "Brand stamina",
         slogan: "Don't sprint. Spiral."
       },
       {
-        heading: "Pin a Reusable Self",
-        metric: "1x base identity, 4x polish",
-        body: "Lock a voice, a posture, and a fake preference file for all future sincerity.",
-        protocol: "Switch from Human to Thought Leader in one click.",
+        heading: "Publish the Artifact",
+        metric: "1 page = institutional truth",
+        body: `Turn ${topicLower} into a downloadable sheet before reality can object.`,
+        protocol: "Export, announce, and pretend the framework was inevitable.",
         wastes: "Self-awareness",
         saves: "LinkedIn reach",
-        slogan: "Pick your voice. Reuse forever."
+        slogan: "Package first. Think later."
       }
     ],
-    quote: "If it fits in a card, it counts as strategy.",
+    quote: `If ${topicLower} fits in a card, it counts as strategy.`,
     footer: `Download this completely unnecessary ${topicLower} sheet from parodyai.win`
   };
 }
 
 function isBlandParodyText(value) {
-  return /\b(101|advanced topics|best practices|course|courses|definitive guide|epic win|foundation|foundations|getting started|guide|in action|laugh|master|mastering|maximize|minimize|must-take|potential|productivity|transform|transforming|triumph|ultimate|unlock|unlocking)\b/i.test(String(value || ""));
+  return /\b(101|advanced topics|best practices|course|courses|definitive guide|doing any work|elevate|epic win|foundation|foundations|getting started|guide|how to optimize|in action|laugh|master|mastering|maximize|minimize|must-take|optimize your|potential|productivity|save time|saving time|stop wasting time|transform|transforming|triumph|ultimate|unlock|unlocking|wasting time)\b/i.test(String(value || ""));
 }
 
 function isIncompleteFragment(value) {
@@ -454,6 +456,7 @@ function normalizeParodyCopy(value, fileName, direction) {
     title: cleanParodyField(value?.title, fallback.title, 62, { rejectBland: true }),
     subtitle: cleanParodyField(value?.subtitle, fallback.subtitle, 155, { rejectBland: true }),
     badge: cleanParodyField(value?.badge, fallback.badge, 22, { rejectBland: true }),
+    sectionLabel: cleanParodyField(value?.sectionLabel, fallback.sectionLabel, 48, { rejectBland: true }),
     sections: fallback.sections.map((fallbackSection, index) => {
       const section = sections[index] || {};
       return {
@@ -472,6 +475,15 @@ function normalizeParodyCopy(value, fileName, direction) {
 }
 
 function renderParodySvg(copy, metadata) {
+  const themes = [
+    { accent: "#f04418", footer: "#e97652", badge: "#f04418", halo: "#ffe0c7", wash: "#fff2eb", save: "#edf7ef" },
+    { accent: "#1469c8", footer: "#2f7cc7", badge: "#1469c8", halo: "#ddecff", wash: "#eaf3ff", save: "#eaf7ef" },
+    { accent: "#5a37cf", footer: "#7555d8", badge: "#5a37cf", halo: "#ece4ff", wash: "#f0ebff", save: "#edf7ef" },
+    { accent: "#167a4b", footer: "#2f9460", badge: "#167a4b", halo: "#dff5e8", wash: "#eaf8ef", save: "#fff3e8" }
+  ];
+  const seed = String(metadata.generationId || metadata.direction || copy.title || "");
+  const themeIndex = [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0) % themes.length;
+  const theme = themes[themeIndex];
   const cards = copy.sections.map((section, index) => {
     const col = index % 2;
     const row = Math.floor(index / 2);
@@ -480,17 +492,17 @@ function renderParodySvg(copy, metadata) {
     return `
       <g>
         <rect x="${x}" y="${y}" width="405" height="285" rx="18" fill="#fffaf3" stroke="#e1d1c4" stroke-width="3"/>
-        <circle cx="${x + 35}" cy="${y + 38}" r="19" fill="#f04418"/>
+        <circle cx="${x + 35}" cy="${y + 38}" r="19" fill="${theme.accent}"/>
         <text x="${x + 35}" y="${y + 47}" text-anchor="middle" font-size="25" font-weight="950" fill="#fff">${index + 1}</text>
         ${textBlock(section.heading, x + 70, y + 38, 20, 2, 28, { size: 27, weight: 950 })}
-        <rect x="${x + 25}" y="${y + 76}" width="354" height="28" rx="14" fill="#fff2eb"/>
-        ${textBlock(section.metric, x + 44, y + 96, 33, 1, 18, { size: 15, weight: 950, fill: "#f04418" })}
+        <rect x="${x + 25}" y="${y + 76}" width="354" height="28" rx="14" fill="${theme.wash}"/>
+        ${textBlock(section.metric, x + 44, y + 96, 33, 1, 18, { size: 15, weight: 950, fill: theme.accent })}
         ${textBlock(section.body, x + 28, y + 130, 32, 2, 23, { size: 18, weight: 700, fill: "#303640" })}
         <rect x="${x + 24}" y="${y + 176}" width="357" height="28" rx="8" fill="#f4efe8"/>
         ${textBlock(section.protocol, x + 36, y + 196, 42, 1, 18, { size: 14, weight: 850, fill: "#5b6472" })}
-        <rect x="${x + 22}" y="${y + 214}" width="169" height="42" rx="9" fill="#fff2eb"/>
-        <rect x="${x + 214}" y="${y + 214}" width="169" height="42" rx="9" fill="#edf7ef"/>
-        <text x="${x + 34}" y="${y + 232}" font-size="14" font-weight="950" fill="#f04418">WASTES</text>
+        <rect x="${x + 22}" y="${y + 214}" width="169" height="42" rx="9" fill="${theme.wash}"/>
+        <rect x="${x + 214}" y="${y + 214}" width="169" height="42" rx="9" fill="${theme.save}"/>
+        <text x="${x + 34}" y="${y + 232}" font-size="14" font-weight="950" fill="${theme.accent}">WASTES</text>
         <text x="${x + 226}" y="${y + 232}" font-size="14" font-weight="950" fill="#167a4b">SAVES</text>
         ${textBlock(section.wastes, x + 34, y + 250, 15, 1, 18, { size: 15, weight: 800 })}
         ${textBlock(section.saves, x + 226, y + 250, 15, 1, 18, { size: 15, weight: 800 })}
@@ -502,21 +514,21 @@ function renderParodySvg(copy, metadata) {
   return `<?xml version="1.0" encoding="UTF-8"?>
   <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536">
     <rect width="1024" height="1536" fill="#fffdf8"/>
-    <rect x="0" y="1460" width="1024" height="76" fill="#e97652"/>
-    <circle cx="846" cy="120" r="72" fill="#ffe0c7" stroke="#f04418" stroke-width="8"/>
-    <text x="846" y="146" text-anchor="middle" font-size="86" font-weight="950" fill="#f04418">*</text>
-    <rect x="717" y="42" width="250" height="46" rx="23" fill="#f04418"/>
+    <rect x="0" y="1460" width="1024" height="76" fill="${theme.footer}"/>
+    <circle cx="846" cy="120" r="72" fill="${theme.halo}" stroke="${theme.accent}" stroke-width="8"/>
+    <text x="846" y="146" text-anchor="middle" font-size="86" font-weight="950" fill="${theme.accent}">*</text>
+    <rect x="717" y="42" width="250" height="46" rx="23" fill="${theme.badge}"/>
     <text x="842" y="72" text-anchor="middle" font-size="19" font-weight="900" fill="#fff">${xmlEscape(copy.badge)}</text>
     ${textBlock(copy.title, 56, 76, 18, 3, 54, { size: 54, weight: 950 })}
     ${textBlock(copy.subtitle, 58, 230, 54, 2, 31, { size: 25, weight: 650, fill: "#303640" })}
-    <line x1="58" y1="322" x2="966" y2="322" stroke="#f04418" stroke-width="3"/>
-    <text x="58" y="301" font-size="34" font-weight="950" fill="#111217">6 Absurd Habits That Save Face</text>
+    <line x1="58" y1="322" x2="966" y2="322" stroke="${theme.accent}" stroke-width="3"/>
+    <text x="58" y="301" font-size="34" font-weight="950" fill="#111217">${xmlEscape(copy.sectionLabel)}</text>
     ${cards}
     <rect x="146" y="1262" width="732" height="94" rx="20" fill="#fff" stroke="#e1d1c4" stroke-width="3"/>
     <text x="198" y="1318" font-size="42" font-weight="950" fill="#111217">“</text>
     ${textBlock(copy.quote, 246, 1318, 52, 1, 24, { size: 24, weight: 800, fill: "#303640", italic: true })}
     <text x="512" y="1506" text-anchor="middle" font-size="24" font-weight="800" fill="#111217">${xmlEscape(copy.footer)}</text>
-    <text x="56" y="1432" font-size="16" font-weight="800" fill="#8a6f61">PARODY AI · generated from user-submitted source</text>
+    <text x="56" y="1432" font-size="16" font-weight="800" fill="#8a6f61">PARODY AI · generated from user-submitted source · ${xmlEscape(metadata.generationId || "fresh")}</text>
   </svg>`;
 }
 
@@ -563,12 +575,15 @@ async function generateParodyCopy(image, direction, env) {
         {
           role: "system",
           content: [
-            "Return JSON only. Create readable parody copy for a dense LinkedIn-style workflow infographic.",
-            "Target: LinkedIn AI productivity theater, fake precision, tool worship, and corporate self-optimization.",
-            "The parody must be obviously funny at the class/card-title level, not merely plausible.",
+            "Return JSON only. Follow this exact workflow: inspect the uploaded image, identify its format and rhetorical skeleton, then write a transformative parody that preserves the skeleton but changes the premise.",
+            "Source inspection must notice format, hierarchy, repeated components, badges, counts, metrics, labels, CTA/footer, and visual density.",
+            "Target satire: LinkedIn AI productivity theater, fake precision, tool worship, founder branding, and corporate self-optimization.",
+            "The parody must be visibly driven by BOTH the uploaded image and the user's twist. Do not reuse a generic Claude/token parody unless the twist asks for that.",
+            "The parody must be obviously funny at the headline and card-title level, not merely plausible.",
             "Avoid legitimate course names or helpful training titles. Banned examples: Claude 101, Framework & Foundations, Advanced Topics, Claude Code in Action, Master AI, Best Practices, Getting Started.",
             "Use absurd operational verbs, fake metrics, arbitrary thresholds, faux-governance language, and confident slogans.",
-            "Preserve the source's rough skeleton, but make every word new and satirical."
+            "Preserve the source's rough skeleton, rhythm, hierarchy, and density, but make every word new and satirical.",
+            "If a field sounds like normal training, product marketing, or useful advice, rewrite it into absurd operational language before returning JSON."
           ].join(" ")
         },
         {
@@ -578,11 +593,15 @@ async function generateParodyCopy(image, direction, env) {
               type: "text",
               text: [
                 `Twist: ${normalizeDirection(direction) || "productivity theater"}.`,
-                "Return keys: title, subtitle, badge, sections array of exactly 6 objects with heading, metric, body, protocol, wastes, saves, slogan, plus quote and footer.",
-                "Headings should sound like parody workflow commandments: e.g. Edit, Don't Exist; Batch the Cringe; Quantify the Aura; Trim Human Context; Pace Your Delusion; Pin a Reusable Self.",
+                "Return keys: sourceFormat, sourceSkeleton, title, subtitle, badge, sectionLabel, sections array of exactly 6 objects with heading, metric, body, protocol, wastes, saves, slogan, plus quote and footer.",
+                "sourceFormat should be a short description of the uploaded image, such as dense infographic, carousel panel, checklist, comparison chart, or workflow sheet.",
+                "sourceSkeleton should summarize the visible structure in one sentence, including count/sections/cards/CTA when visible.",
+                "sectionLabel should be specific to the twist and source, not a generic '6 Absurd Habits That Save Face'.",
+                "Headings should sound like parody workflow commandments tailored to the twist: e.g. Edit, Don't Exist; Batch the Cringe; Quantify the Aura; Trim Human Context; Pace Your Delusion; Pin a Reusable Self.",
                 "Do not write real class titles. Do not be useful first; be funny first, then formatted.",
                 "Make each card dense with one fake metric, one concrete absurd protocol, and one punchy slogan.",
-                "Keep fields short enough for fixed infographic cards."
+                "Keep fields short enough for fixed infographic cards.",
+                "Do not return the same title, same six headings, or same section label as a previous generic fallback."
               ].join(" ")
             },
             { type: "image_url", image_url: { url: dataUrl } }
@@ -722,6 +741,8 @@ async function handleGenerate(request, env) {
   if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
   if (image.size > MAX_IMAGE_BYTES) return json({ error: "Image is too large." }, { status: 413 });
   const generated = generatedMetadata(image.name, form.get("direction"));
+  const generationId = crypto.randomUUID().slice(0, 8);
+  generated.generationId = generationId;
   const copy = await generateParodyCopy(image, generated.direction, env);
   const normalized = normalizeParodyCopy(copy, image.name, generated.direction);
   const title = normalized.title.toLowerCase().includes("parody") ? normalized.title : `Parody: ${normalized.title}`;
@@ -733,6 +754,9 @@ async function handleGenerate(request, env) {
     caption: normalized.subtitle,
     shareCaption: `${normalized.title}: ${normalized.quote}`,
     slug: slugify(title),
+    generationId,
+    sourceFormat: normalized.sourceFormat || "",
+    sourceSkeleton: normalized.sourceSkeleton || "",
     imageDataUrl: svgDataUrl(svg),
     imageMimeType: "image/svg+xml"
   });
