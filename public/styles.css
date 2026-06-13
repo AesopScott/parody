@@ -566,6 +566,22 @@ footer span:first-child {
   font-weight: 700;
 }
 
+.direction-line {
+  display: grid;
+  gap: 8px;
+  font-weight: 950;
+}
+
+.direction-line input {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+
 .studio-preview {
   display: grid;
   place-items: center;

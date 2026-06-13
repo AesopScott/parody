@@ -1,5 +1,6 @@
 const form = document.querySelector("#studio-form");
 const fileInput = form.querySelector('input[name="image"]');
+const directionInput = form.querySelector('input[name="direction"]');
 const preview = document.querySelector("#preview");
 const generateButton = document.querySelector("#generate-button");
 const submitButton = document.querySelector("#submit-button");
@@ -40,6 +41,13 @@ fileInput.addEventListener("change", () => {
   preview.innerHTML = `<img src="${url}" alt="Uploaded source image">`;
 });
 
+directionInput.addEventListener("input", () => {
+  if (!generated) return;
+  generated = null;
+  submitButton.disabled = true;
+  generatedCaption.textContent = "Direction changed. Generate again before submitting.";
+});
+
 generateButton.addEventListener("click", () => {
   generateButton.disabled = true;
   generateButton.textContent = "Generating...";
@@ -58,6 +66,7 @@ async function generate() {
 
   const payload = new FormData();
   payload.set("image", file);
+  payload.set("direction", directionInput.value.trim());
   const response = await fetch("/api/generate", {
     method: "POST",
     body: payload
@@ -91,6 +100,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const payload = new FormData();
     payload.set("image", file);
+    payload.set("direction", directionInput.value.trim());
 
     const response = await fetch("/api/pending", {
       method: "POST",

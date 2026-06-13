@@ -90,14 +90,40 @@ function titleFromFilename(name) {
     .join(" ");
 }
 
-function generatedMetadata(fileName) {
+function normalizeDirection(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+}
+
+function titleFromDirection(direction) {
+  const clean = normalizeDirection(direction)
+    .replace(/^(make it|make this|turn it|turn this)\s+(about|into|toward|for)\s+/i, "")
+    .replace(/^about\s+/i, "")
+    .trim();
+  if (!clean) return "";
+  return clean
+    .split(" ")
+    .slice(0, 7)
+    .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1)}` : "")
+    .join(" ");
+}
+
+function generatedMetadata(fileName, directionValue = "") {
+  const direction = normalizeDirection(directionValue);
+  const directedTitle = titleFromDirection(direction);
   const baseTitle = titleFromFilename(fileName);
-  const title = baseTitle.toLowerCase().includes("parody") ? baseTitle : `Parody: ${baseTitle}`;
+  const titleBase = directedTitle || baseTitle;
+  const title = titleBase.toLowerCase().includes("parody") ? titleBase : `Parody: ${titleBase}`;
+  const target = directedTitle ? directedTitle.toLowerCase() : "a productivity artifact that probably needed fewer boxes";
+  const note = direction || target;
   return {
     title,
-    caption: "A fresh workflow document of absurdity, generated from a productivity artifact that probably needed fewer boxes.",
-    shareCaption: "I fed an earnest AI workflow image into Parody AI and it came back with a more honest version.",
-    slug: slugify(title)
+    caption: `A fresh workflow document of absurdity aimed at ${target}.`,
+    shareCaption: `I fed an earnest AI workflow image into Parody AI with one note: ${note}. It came back with a more honest version.`,
+    slug: slugify(title),
+    direction
   };
 }
 
@@ -130,7 +156,7 @@ async function handlePendingList(request, env) {
 async function handleCreatePending(request, env) {
   const form = await request.formData();
   const image = form.get("image");
-  const generated = generatedMetadata(image?.name);
+  const generated = generatedMetadata(image?.name, form.get("direction"));
   const title = String(form.get("title") || generated.title).trim();
   const caption = String(form.get("caption") || generated.caption).trim();
   const shareCaption = String(form.get("shareCaption") || generated.shareCaption).trim();
@@ -153,6 +179,7 @@ async function handleCreatePending(request, env) {
     image: `/api/images/${imageName}`,
     caption,
     shareCaption,
+    direction: generated.direction,
     comments: 0,
     boosts: 0,
     likes: 0,
@@ -177,7 +204,7 @@ async function handleGenerate(request) {
   if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
   return json({
     status: "generated",
-    ...generatedMetadata(image.name)
+    ...generatedMetadata(image.name, form.get("direction"))
   });
 }
 
