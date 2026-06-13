@@ -67,6 +67,9 @@ function hydrateFeatured(post) {
     image.src = post.image;
     image.alt = `Satirical infographic titled ${post.title}`;
   }
+
+  const postCount = document.querySelector("#post-count");
+  if (postCount) postCount.textContent = posts.length;
 }
 
 function renderPosts(filter = "local") {
