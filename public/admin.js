@@ -1,5 +1,4 @@
 const tokenForm = document.querySelector("#token-form");
-const dropForm = document.querySelector("#drop-form");
 const pendingGrid = document.querySelector("#pending-grid");
 const refreshButton = document.querySelector("#refresh-pending");
 const toast = document.querySelector(".toast");
@@ -30,23 +29,9 @@ async function api(path, options = {}) {
 tokenForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = new FormData(tokenForm);
-  localStorage.setItem("parodyai-admin-username", String(form.get("username") || ""));
   localStorage.setItem("parodyai-admin-token", String(form.get("password") || ""));
   showToast("Login saved");
   loadPending();
-});
-
-dropForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const form = new FormData(dropForm);
-    await api("/api/pending", { method: "POST", body: form });
-    dropForm.reset();
-    showToast("Submitted for approval");
-    loadPending();
-  } catch (error) {
-    showToast(error.message);
-  }
 });
 
 async function approve(id) {
@@ -74,16 +59,13 @@ async function loadPending() {
   try {
     const items = await api("/api/pending");
     pendingGrid.innerHTML = items.length ? items.map((item) => `
-      <article class="post-card">
-        <a class="post-media" href="${item.image}" target="_blank" rel="noreferrer">
+      <article class="approval-item">
+        <a class="approval-image" href="${item.image}" target="_blank" rel="noreferrer">
           <img src="${item.image}" alt="${item.title}">
-          <span class="post-badge">pending</span>
         </a>
-        <div class="post-body">
-          <div>
-            <h3>${item.title}</h3>
-            <p>${item.caption}</p>
-          </div>
+        <div class="approval-copy">
+          <h2>${item.title}</h2>
+          <p>${item.caption}</p>
           <div class="actions compact-actions">
             <button class="button primary" type="button" data-approve="${item.id}">Approve</button>
             <button class="button" type="button" data-reject="${item.id}">Reject</button>

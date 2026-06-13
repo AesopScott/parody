@@ -18,56 +18,38 @@
     </nav>
   </header>
 
-  <main>
-    <section class="intro studio-intro">
-      <div class="intro-copy">
-        <p class="eyebrow">Generation workspace</p>
-        <h1>Make the parody first. Approve it somewhere else.</h1>
-        <p class="lede">Use this page to shape a drop: source image, title, caption, and publishing metadata. Admin approval lives on its own page.</p>
-      </div>
-      <div class="status-card">
-        <span class="status-dot"></span>
-        <div>
-          <strong>Studio mode</strong>
-          <span>No approval controls here. Use Admin when the image is ready.</span>
-        </div>
-      </div>
-    </section>
+  <main class="studio-main">
+    <section class="single-studio" aria-labelledby="studio-title">
+      <p class="eyebrow">Generate a parody</p>
+      <h1 id="studio-title">Upload. Generate. Submit.</h1>
 
-    <section class="studio-shell">
-      <form class="studio-form" id="drop-form">
-        <h2>Prepare a drop</h2>
-        <label>Source or finished PNG
-          <input name="image" type="file" accept="image/png,image/jpeg,image/webp">
+      <form id="studio-form" class="single-studio-form">
+        <label class="upload-box">
+          <span>Upload source image</span>
+          <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
         </label>
-        <label>Title
-          <input name="title" placeholder="Stop Using Claude for Normal Human Tasks">
-        </label>
-        <label>Feed caption
-          <textarea name="caption" rows="3" placeholder="Short caption for the gallery"></textarea>
-        </label>
-        <label>LinkedIn caption
-          <textarea name="shareCaption" rows="4" placeholder="Longer caption people can copy"></textarea>
-        </label>
-        <label>Slug
-          <input name="slug" placeholder="claude-uses-parody">
-        </label>
-        <div class="actions compact-actions">
-          <button class="button primary" type="button" id="copy-brief">Copy brief</button>
-          <a class="button" href="/admin.html">Go to Admin approval</a>
+
+        <div class="studio-preview" id="preview">
+          <span>No image selected</span>
+        </div>
+
+        <div class="actions">
+          <button class="button primary" type="button" id="generate-button">Generate</button>
+          <button class="button" type="submit" id="submit-button" disabled>Submit</button>
         </div>
       </form>
 
-      <div class="caption-card">
+      <div class="caption-card studio-result" id="studio-result" hidden>
         <div class="caption-head">
-          <span>Studio note</span>
+          <span>Generated drop</span>
         </div>
-        <p id="studio-output">Fill out the drop details, copy the brief, generate/export the image, then use Admin approval to publish.</p>
+        <p id="generated-title">Ready for review</p>
+        <p id="generated-caption">Submit sends this to the admin approval queue.</p>
       </div>
     </section>
   </main>
 
-  <div class="toast" role="status" aria-live="polite">Copied</div>
+  <div class="toast" role="status" aria-live="polite">Done</div>
   <script src="/studio.js"></script>
 </body>
 </html>

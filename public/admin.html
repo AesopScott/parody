@@ -15,68 +15,24 @@
     <nav class="nav">
       <a href="/">Public site</a>
       <a href="/studio.html">Studio</a>
-      <a href="#pending">Pending</a>
     </nav>
   </header>
 
-  <main>
-    <section class="intro studio-intro">
-      <div class="intro-copy">
-        <p class="eyebrow">Approval console</p>
-        <h1>Approve the finished image, then it goes live.</h1>
-        <p class="lede">Admin is separate from Studio. Use this page only for login, pending submissions, approvals, and rejects.</p>
-      </div>
-      <div class="status-card">
-        <span class="status-dot"></span>
-        <div>
-          <strong>Approval gated</strong>
-          <span>Use the single admin account before approving drops.</span>
-        </div>
-      </div>
-    </section>
+  <main class="studio-main">
+    <section class="single-studio" aria-labelledby="admin-title">
+      <p class="eyebrow">Approval queue</p>
+      <h1 id="admin-title">Review submissions.</h1>
 
-    <section class="studio-shell">
-      <form class="studio-form" id="token-form">
-        <h2>Admin login</h2>
-        <label>Username
-          <input name="username" type="text" autocomplete="username" value="none" placeholder="Username">
-        </label>
-        <label>Password
-          <input name="password" type="password" autocomplete="current-password" placeholder="Password">
-        </label>
-        <button class="button primary" type="submit">Save login</button>
+      <form class="admin-login" id="token-form">
+        <input name="password" type="password" autocomplete="current-password" placeholder="Admin password">
+        <button class="button primary" type="submit">Log in</button>
       </form>
 
-      <form class="studio-form" id="drop-form">
-        <h2>Submit finished image</h2>
-        <label>Approved PNG
-          <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
-        </label>
-        <label>Title
-          <input name="title" required placeholder="Stop Using Claude for Normal Human Tasks">
-        </label>
-        <label>Feed caption
-          <textarea name="caption" rows="3" required placeholder="Short caption for the gallery"></textarea>
-        </label>
-        <label>LinkedIn caption
-          <textarea name="shareCaption" rows="4" placeholder="Longer caption people can copy"></textarea>
-        </label>
-        <label>Slug
-          <input name="slug" placeholder="claude-uses-parody">
-        </label>
-        <button class="button primary" type="submit">Submit to pending queue</button>
-      </form>
-    </section>
-
-    <section class="pixelfed-shell" id="pending">
-      <div class="profile-title-row">
-        <div>
-          <p class="eyebrow">Pending queue</p>
-          <h2>Approve or reject queued drops.</h2>
-        </div>
-        <button class="button" id="refresh-pending" type="button">Refresh</button>
+      <div class="actions">
+        <button class="button" id="refresh-pending" type="button">Refresh submissions</button>
       </div>
-      <div class="post-grid pending-grid" id="pending-grid"></div>
+
+      <div class="approval-list" id="pending-grid"></div>
     </section>
   </main>
 

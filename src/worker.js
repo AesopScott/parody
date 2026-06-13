@@ -77,6 +77,30 @@ function extensionForType(type) {
   return ".png";
 }
 
+function titleFromFilename(name) {
+  const clean = String(name || "parody drop")
+    .replace(/\.[^.]+$/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "Fresh Parody Drop";
+  return clean
+    .split(" ")
+    .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1)}` : "")
+    .join(" ");
+}
+
+function generatedMetadata(fileName) {
+  const baseTitle = titleFromFilename(fileName);
+  const title = baseTitle.toLowerCase().includes("parody") ? baseTitle : `Parody: ${baseTitle}`;
+  return {
+    title,
+    caption: "A fresh workflow document of absurdity, generated from a productivity artifact that probably needed fewer boxes.",
+    shareCaption: "I fed an earnest AI workflow image into Parody AI and it came back with a more honest version.",
+    slug: slugify(title)
+  };
+}
+
 async function handleDrops(request, env) {
   const approved = await readIndex(env.PARODY_DROPS, APPROVED_INDEX);
   const fallback = await readStaticDrops(env, request);
@@ -104,13 +128,12 @@ async function handlePendingList(request, env) {
 }
 
 async function handleCreatePending(request, env) {
-  if (!requireAdmin(request, env)) return unauthorized();
-
   const form = await request.formData();
   const image = form.get("image");
-  const title = String(form.get("title") || "").trim();
-  const caption = String(form.get("caption") || "").trim();
-  const shareCaption = String(form.get("shareCaption") || caption).trim();
+  const generated = generatedMetadata(image?.name);
+  const title = String(form.get("title") || generated.title).trim();
+  const caption = String(form.get("caption") || generated.caption).trim();
+  const shareCaption = String(form.get("shareCaption") || generated.shareCaption).trim();
   const tag = String(form.get("tag") || "local").trim();
 
   if (!(image instanceof File)) return json({ error: "Image file is required." }, { status: 400 });
@@ -145,6 +168,17 @@ async function handleCreatePending(request, env) {
   await writeIndex(env.PARODY_DROPS, PENDING_INDEX, [entry, ...pending.filter((item) => item.id !== id)]);
 
   return json({ status: "pending", entry });
+}
+
+async function handleGenerate(request) {
+  const form = await request.formData();
+  const image = form.get("image");
+  if (!(image instanceof File)) return json({ error: "Image file is required." }, { status: 400 });
+  if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
+  return json({
+    status: "generated",
+    ...generatedMetadata(image.name)
+  });
 }
 
 async function handleApprove(request, env) {
@@ -207,6 +241,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/drops" && request.method === "GET") return handleDrops(request, env);
+    if (url.pathname === "/api/generate" && request.method === "POST") return handleGenerate(request, env);
     if (url.pathname.startsWith("/api/images/") && request.method === "GET") return handleImage(request, env);
     if (url.pathname === "/api/pending" && request.method === "GET") return handlePendingList(request, env);
     if (url.pathname === "/api/pending" && request.method === "POST") return handleCreatePending(request, env);
