@@ -1,6 +1,6 @@
 const form = document.querySelector("#studio-form");
 const fileInput = form.querySelector('input[name="image"]');
-const directionInput = form.querySelector('input[name="direction"]');
+const directionInput = form.querySelector('[name="direction"]');
 const preview = document.querySelector("#preview");
 const generatedPreview = document.querySelector("#generated-preview");
 const generateButton = document.querySelector("#generate-button");

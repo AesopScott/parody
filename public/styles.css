@@ -589,14 +589,19 @@ footer span:first-child {
   font-weight: 950;
 }
 
-.direction-line input {
-  min-height: 46px;
-  padding: 0 12px;
+.direction-line textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 92px;
+  resize: vertical;
+  padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   font: inherit;
   font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .studio-preview {
