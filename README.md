@@ -1,4 +1,4 @@
-# AI Parody
+# Parody AI
 
 Public gallery for satirical AI workflow artifacts built for sharing to LinkedIn.
 
@@ -17,6 +17,5 @@ npm run deploy
 
 The Worker serves static assets from `public/` and is configured for:
 
-- `aiparody.win`
-- `www.aiparody.win`
-
+- `parodyai.win`
+- `www.parodyai.win`

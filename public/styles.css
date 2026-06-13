@@ -256,6 +256,196 @@ h3 {
   line-height: 1.45;
 }
 
+.pixelfed-shell {
+  margin-top: 34px;
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pixelfed-profile {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background:
+    linear-gradient(135deg, var(--orange), var(--blue) 58%, var(--green));
+  color: #fff;
+  box-shadow: var(--shadow);
+  font-size: 36px;
+  font-weight: 950;
+}
+
+.profile-main h2 {
+  margin-bottom: 6px;
+}
+
+.profile-main p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.profile-title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.profile-bio {
+  max-width: 760px;
+  padding-top: 14px;
+  font-size: 18px;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 28px;
+  margin: 24px 0 0;
+}
+
+.profile-stats div {
+  min-width: 92px;
+}
+
+.profile-stats dt {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.profile-stats dd {
+  margin: 3px 0 0;
+  font-size: 28px;
+  font-weight: 950;
+}
+
+.feed-toolbar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 0;
+}
+
+.feed-tab {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.feed-tab.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.post-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.post-media {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--wash);
+}
+
+.post-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.post-card:hover .post-media img {
+  transform: scale(1.03);
+}
+
+.post-badge,
+.post-overlay {
+  position: absolute;
+  left: 12px;
+  border-radius: 999px;
+  background: rgba(17, 18, 23, 0.82);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.post-badge {
+  top: 12px;
+  padding: 6px 9px;
+}
+
+.post-overlay {
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  text-transform: none;
+}
+
+.post-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.post-body h3 {
+  margin-bottom: 7px;
+  font-size: 20px;
+}
+
+.post-body p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.post-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .grid-section,
 .queue {
   padding: 74px 0 0;
@@ -345,7 +535,9 @@ footer span:first-child {
 @media (max-width: 980px) {
   .intro,
   .drop-layout,
-  .feature-grid {
+  .feature-grid,
+  .pixelfed-profile,
+  .post-grid {
     grid-template-columns: 1fr;
   }
 
@@ -360,6 +552,11 @@ footer span:first-child {
 
   .status-card {
     max-width: 520px;
+  }
+
+  .profile-title-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .queue li,
@@ -417,6 +614,34 @@ footer span:first-child {
   .drop-layout {
     padding: 18px;
     overflow: hidden;
+  }
+
+  .pixelfed-shell {
+    padding: 18px;
+  }
+
+  .pixelfed-profile {
+    gap: 18px;
+  }
+
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+    font-size: 27px;
+  }
+
+  .profile-stats {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .profile-stats div {
+    min-width: 0;
+  }
+
+  .feed-toolbar {
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 
   .actions {

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "aiparody-win",
+  "name": "parodyai-win",
   "compatibility_date": "2026-06-13",
   "main": "./src/worker.js",
   "assets": {
@@ -11,11 +11,11 @@
   },
   "routes": [
     {
-      "pattern": "aiparody.win",
+      "pattern": "parodyai.win",
       "custom_domain": true
     },
     {
-      "pattern": "www.aiparody.win",
+      "pattern": "www.parodyai.win",
       "custom_domain": true
     }
   ]
