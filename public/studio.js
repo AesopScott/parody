@@ -10,6 +10,7 @@ const result = document.querySelector("#studio-result");
 const generatedTitle = document.querySelector("#generated-title");
 const generatedCaption = document.querySelector("#generated-caption");
 const toast = document.querySelector(".toast");
+const GENERATE_TIMEOUT_MS = 60000;
 
 let generated = null;
 let generatedImageBlob = null;
@@ -65,6 +66,16 @@ function showGeneratedImage(dataUrl, title) {
   generatedPreview.innerHTML = `<img src="${generatedImageUrl}" alt="${title || "Generated parody image"}">`;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = GENERATE_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
   resetGeneratedOutput();
@@ -97,7 +108,7 @@ generateButton.addEventListener("click", () => {
     <div class="output-loading">
       <span></span>
       <strong>Generating image...</strong>
-      <small>Reading the upload and applying your twist.</small>
+      <small>This can take up to a minute. If it stalls, you'll get an error here.</small>
     </div>
   `;
   generatedTitle.textContent = "Generating...";
@@ -111,44 +122,53 @@ generateButton.addEventListener("click", () => {
 });
 
 async function generate() {
-  const file = fileInput.files?.[0];
-  if (!file) {
-    showToast("Upload an image first");
-    setStatus("Upload an image first.", "needs-work");
-    resetGeneratedOutput();
-    return;
-  }
+  try {
+    const file = fileInput.files?.[0];
+    if (!file) {
+      showToast("Upload an image first");
+      setStatus("Upload an image first.", "needs-work");
+      resetGeneratedOutput();
+      return;
+    }
 
-  const payload = new FormData();
-  payload.set("image", file);
-  payload.set("direction", directionInput.value.trim());
-  const response = await fetch("/api/generate", {
-    method: "POST",
-    body: payload
-  });
-  const data = await response.json().catch(() => ({ error: "Generate failed" }));
-  if (!response.ok) {
-    showToast(data.error || "Generate failed");
-    setStatus(data.error || "Generate failed.", "needs-work");
-    resetGeneratedOutput("Generation failed. Try again.");
-    return;
-  }
+    const payload = new FormData();
+    payload.set("image", file);
+    payload.set("direction", directionInput.value.trim());
+    const response = await fetchWithTimeout("/api/generate", {
+      method: "POST",
+      body: payload
+    });
+    const data = await response.json().catch(() => ({ error: "Generate failed" }));
+    if (!response.ok) {
+      showToast(data.error || "Generate failed");
+      setStatus(data.error || "Generate failed.", "needs-work");
+      resetGeneratedOutput("Generation failed. Try again.");
+      return;
+    }
 
-  generated = data;
-  if (!generated.imageDataUrl) {
-    showToast("No image returned");
-    setStatus("No image returned.", "needs-work");
-    resetGeneratedOutput("No image returned. Try again.");
-    return;
-  }
+    generated = data;
+    if (!generated.imageDataUrl) {
+      showToast("No image returned");
+      setStatus("No image returned.", "needs-work");
+      resetGeneratedOutput("No image returned. Try again.");
+      return;
+    }
 
-  showGeneratedImage(generated.imageDataUrl, generated.title);
-  generatedTitle.textContent = generated.title;
-  generatedCaption.textContent = generated.caption;
-  result.hidden = false;
-  submitButton.disabled = false;
-  setStatus("Generated. Review, then submit.", "done");
-  showToast("Generated");
+    showGeneratedImage(generated.imageDataUrl, generated.title);
+    generatedTitle.textContent = generated.title;
+    generatedCaption.textContent = generated.caption;
+    result.hidden = false;
+    submitButton.disabled = false;
+    setStatus("Generated. Review, then submit.", "done");
+    showToast("Generated");
+  } catch (error) {
+    const message = error.name === "AbortError"
+      ? "Generation timed out after 60 seconds. Try a smaller image or a shorter twist."
+      : "Could not reach the generator. Check the connection and try again.";
+    showToast(message);
+    setStatus(message, "needs-work");
+    resetGeneratedOutput(message);
+  }
 }
 
 form.addEventListener("submit", async (event) => {

@@ -1,6 +1,7 @@
 const APPROVED_INDEX = "approved:index";
 const PENDING_INDEX = "pending:index";
 const MAX_IMAGE_BYTES = 1024 * 1024 * 8;
+const OPENAI_TIMEOUT_MS = 35000;
 
 function json(value, init = {}) {
   return new Response(JSON.stringify(value, null, 2), {
@@ -34,6 +35,12 @@ function html(value, init = {}) {
 
 function unauthorized() {
   return json({ error: "Admin approval token required." }, { status: 401 });
+}
+
+function requestError(message, status = 500) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
 }
 
 function adminToken(request) {
@@ -507,6 +514,19 @@ function svgDataUrl(svg) {
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
+async function fetchWithTimeout(url, options, timeoutMs, timeoutMessage) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") throw requestError(timeoutMessage, 504);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function generateParodyCopy(image, direction, env) {
   if (!env.OPENAI_API_KEY) return defaultParodyCopy(image.name, direction);
 
@@ -517,7 +537,7 @@ async function generateParodyCopy(image, direction, env) {
     binary += String.fromCharCode(bytes[index]);
   }
   const dataUrl = `data:${image.type};base64,${btoa(binary)}`;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.OPENAI_API_KEY}`,
@@ -558,7 +578,7 @@ async function generateParodyCopy(image, direction, env) {
         }
       ]
     })
-  });
+  }, OPENAI_TIMEOUT_MS, "Generation timed out while waiting for the AI copy step. Try again with a smaller image or a shorter twist.");
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -789,7 +809,7 @@ export default {
 
       return env.ASSETS.fetch(request);
     } catch (error) {
-      return json({ error: error.message || "Request failed." }, { status: 500 });
+      return json({ error: error.message || "Request failed." }, { status: error.status || 500 });
     }
   }
 };
