@@ -65,6 +65,16 @@ a {
   color: #fff;
 }
 
+.build-version {
+  align-self: center;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .nav {
   display: flex;
   gap: 20px;

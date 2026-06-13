@@ -2,6 +2,7 @@ const APPROVED_INDEX = "approved:index";
 const PENDING_INDEX = "pending:index";
 const MAX_IMAGE_BYTES = 1024 * 1024 * 8;
 const OPENAI_TIMEOUT_MS = 35000;
+const APP_VERSION = "0.1.3";
 
 function json(value, init = {}) {
   return new Response(JSON.stringify(value, null, 2), {
@@ -85,6 +86,7 @@ function studioPage() {
     <a class="brand" href="/">
       <span class="brand-mark">✱</span>
       <span>Parody AI Studio</span>
+      <span class="build-version">v${APP_VERSION}</span>
     </a>
     <nav class="nav">
       <a href="/">Public site</a>
@@ -139,7 +141,7 @@ function studioPage() {
   </main>
 
   <div class="toast" role="status" aria-live="polite">Done</div>
-  <script src="/studio.js"></script>
+  <script src="/studio.js?v=${APP_VERSION}"></script>
 </body>
 </html>`;
 }
@@ -815,7 +817,7 @@ export default {
       if (url.pathname === "/api/approve" && request.method === "POST") return handleApprove(request, env);
       if (url.pathname === "/api/reject" && request.method === "POST") return handleReject(request, env);
       if (url.pathname === "/admin") return html(adminPage());
-      if (url.pathname === "/studio") return html(studioPage());
+      if (url.pathname === "/studio") return html(studioPage(), { headers: { "cache-control": "no-store" } });
 
       return env.ASSETS.fetch(request);
     } catch (error) {
