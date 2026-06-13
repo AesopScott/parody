@@ -29,9 +29,12 @@ async function api(path, options = {}) {
 
 tokenForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const value = new FormData(tokenForm).get("token");
-  localStorage.setItem("parodyai-admin-token", value);
-  showToast("Token saved");
+  const form = new FormData(tokenForm);
+  const username = String(form.get("username") || "");
+  const password = String(form.get("password") || "");
+  localStorage.setItem("parodyai-admin-username", username);
+  localStorage.setItem("parodyai-admin-token", password);
+  showToast("Login saved");
   loadPending();
 });
 
