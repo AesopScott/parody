@@ -60,6 +60,10 @@ function publicOrigin(request) {
   return `${url.protocol}//${url.host}`;
 }
 
+function postIdFor(drop) {
+  return String(drop.id || slugify(drop.image || drop.title) || crypto.randomUUID());
+}
+
 function studioPage() {
   return `<!doctype html>
 <html lang="en">
@@ -191,6 +195,37 @@ async function readStaticDrops(env, request) {
   const response = await env.ASSETS.fetch(new URL("/drops.json", request.url));
   if (!response.ok) return [];
   return response.json();
+}
+
+async function readVotes(env, postId) {
+  return Number(await env.PARODY_DROPS.get(`votes:${postId}`)) || 0;
+}
+
+async function writeVotes(env, postId, count) {
+  await env.PARODY_DROPS.put(`votes:${postId}`, String(Math.max(0, Number(count) || 0)));
+}
+
+async function readComments(env, postId) {
+  return (await env.PARODY_DROPS.get(`comments:${postId}`, "json")) || [];
+}
+
+async function writeComments(env, postId, comments) {
+  await env.PARODY_DROPS.put(`comments:${postId}`, JSON.stringify(comments.slice(0, 100), null, 2));
+}
+
+async function hydrateDropEngagement(env, drop) {
+  const id = postIdFor(drop);
+  const comments = await readComments(env, id);
+  const upvotes = await readVotes(env, id);
+  const seedUpvotes = Number(drop.upvotes ?? drop.likes ?? 0) || 0;
+  return {
+    ...drop,
+    id,
+    upvotes: seedUpvotes + upvotes,
+    likes: seedUpvotes + upvotes,
+    commentCount: comments.length,
+    comments: comments.length
+  };
 }
 
 function imageTypeFromName(name) {
@@ -541,7 +576,47 @@ async function handleDrops(request, env) {
   const approved = await readIndex(env.PARODY_DROPS, APPROVED_INDEX);
   const fallback = await readStaticDrops(env, request);
   const seen = new Set(approved.map((drop) => drop.image));
-  return json([...approved, ...fallback.filter((drop) => !seen.has(drop.image))]);
+  const drops = [...approved, ...fallback.filter((drop) => !seen.has(drop.image))];
+  return json(await Promise.all(drops.map((drop) => hydrateDropEngagement(env, drop))));
+}
+
+async function handleUpvote(request, env, postId) {
+  if (!postId) return json({ error: "Post id is required." }, { status: 400 });
+  const current = await readVotes(env, postId);
+  const upvotes = current + 1;
+  await writeVotes(env, postId, upvotes);
+  return json({ id: postId, upvotes });
+}
+
+async function handleComments(request, env, postId) {
+  if (!postId) return json({ error: "Post id is required." }, { status: 400 });
+  const comments = await readComments(env, postId);
+  return json({ id: postId, comments });
+}
+
+async function handleCreateComment(request, env, postId) {
+  if (!postId) return json({ error: "Post id is required." }, { status: 400 });
+  const payload = await request.json().catch(() => ({}));
+  const body = String(payload.body || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 420);
+  const name = String(payload.name || "Anonymous")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 42) || "Anonymous";
+  if (body.length < 2) return json({ error: "Comment is too short." }, { status: 400 });
+
+  const comment = {
+    id: crypto.randomUUID(),
+    name,
+    body,
+    createdAt: new Date().toISOString()
+  };
+  const comments = await readComments(env, postId);
+  const nextComments = [comment, ...comments].slice(0, 100);
+  await writeComments(env, postId, nextComments);
+  return json({ id: postId, comment, comments: nextComments, commentCount: nextComments.length });
 }
 
 async function handleImage(request, env) {
@@ -691,6 +766,16 @@ export default {
   async fetch(request, env) {
     try {
       const url = new URL(request.url);
+      const postMatch = url.pathname.match(/^\/api\/posts\/([^/]+)\/(upvote|comments)$/);
+      if (postMatch?.[2] === "upvote" && request.method === "POST") {
+        return handleUpvote(request, env, decodeURIComponent(postMatch[1]));
+      }
+      if (postMatch?.[2] === "comments" && request.method === "GET") {
+        return handleComments(request, env, decodeURIComponent(postMatch[1]));
+      }
+      if (postMatch?.[2] === "comments" && request.method === "POST") {
+        return handleCreateComment(request, env, decodeURIComponent(postMatch[1]));
+      }
 
       if (url.pathname === "/api/drops" && request.method === "GET") return handleDrops(request, env);
       if (url.pathname === "/api/generate" && request.method === "POST") return handleGenerate(request, env);

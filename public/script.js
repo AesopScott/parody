@@ -18,6 +18,21 @@ const fallbackPosts = [
 ];
 
 let posts = fallbackPosts;
+let activeFilter = "local";
+const votedPosts = new Set(JSON.parse(localStorage.getItem("parodyai-voted-posts") || "[]"));
+
+function persistVotedPosts() {
+  localStorage.setItem("parodyai-voted-posts", JSON.stringify([...votedPosts]));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 async function copyText(selector) {
   const target = document.querySelector(selector);
@@ -34,6 +49,19 @@ document.querySelectorAll("[data-copy]").forEach((button) => {
 
 function formatCount(count) {
   return Intl.NumberFormat("en", { notation: "compact" }).format(count || 0);
+}
+
+function postId(post) {
+  return post.id || slugify(post.image || post.title);
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72);
 }
 
 function shareUrlFor(post) {
@@ -74,35 +102,108 @@ function hydrateFeatured(post) {
 
 function renderPosts(filter = "local") {
   if (!postGrid) return;
+  activeFilter = filter;
 
   const visiblePosts = posts.filter((post) => filter === "local" ? true : post.tag === filter);
 
   postGrid.innerHTML = visiblePosts.map((post) => `
-    <article class="post-card">
-      <a class="post-media" href="${post.url || post.image}" aria-label="Open ${post.title}">
-        <img src="${post.image}" alt="${post.title}">
-        <span class="post-badge">${post.tag}</span>
+    <article class="post-card" data-post-id="${escapeHtml(postId(post))}">
+      <a class="post-media" href="${escapeHtml(post.url || post.image)}" aria-label="Open ${escapeHtml(post.title)}">
+        <img src="${escapeHtml(post.image)}" alt="${escapeHtml(post.title)}">
+        <span class="post-badge">${escapeHtml(post.tag)}</span>
         <span class="post-overlay">
-          <span>${formatCount(post.comments)} comments</span>
-          <span>${formatCount(post.likes)} likes</span>
+          <span>${formatCount(post.commentCount ?? post.comments)} comments</span>
+          <span>${formatCount(post.upvotes ?? post.likes)} upvotes</span>
         </span>
       </a>
       <div class="post-body">
         <div>
-          <h3>${post.title}</h3>
-          <p>${post.caption}</p>
+          <h3>${escapeHtml(post.title)}</h3>
+          <p>${escapeHtml(post.caption)}</p>
         </div>
         <div class="post-actions" aria-label="Post stats">
-          <span title="Comments">Reply ${formatCount(post.comments)}</span>
-          <span title="Boosts">Boost ${formatCount(post.boosts)}</span>
-          <span title="Likes">Like ${formatCount(post.likes)}</span>
+          <button class="post-action-button" type="button" data-upvote="${escapeHtml(postId(post))}" ${votedPosts.has(postId(post)) ? "disabled" : ""}>
+            Upvote <span>${formatCount(post.upvotes ?? post.likes)}</span>
+          </button>
+          <button class="post-action-button" type="button" data-comments="${escapeHtml(postId(post))}">
+            Comments <span>${formatCount(post.commentCount ?? post.comments)}</span>
+          </button>
+        </div>
+        <div class="comment-panel" id="comments-${escapeHtml(postId(post))}" hidden>
+          <form class="comment-form" data-comment-form="${escapeHtml(postId(post))}">
+            <input name="name" autocomplete="name" maxlength="42" placeholder="Name">
+            <textarea name="body" maxlength="420" rows="3" placeholder="Add a comment" required></textarea>
+            <button class="button primary" type="submit">Post comment</button>
+          </form>
+          <div class="comment-list" data-comment-list="${escapeHtml(postId(post))}"></div>
         </div>
       </div>
     </article>
   `).join("");
 }
 
-async function loadPosts() {
+async function upvotePost(id) {
+  if (votedPosts.has(id)) return;
+  const response = await fetch(`/api/posts/${encodeURIComponent(id)}/upvote`, { method: "POST" });
+  const data = await response.json().catch(() => ({ error: "Upvote failed" }));
+  if (!response.ok) throw new Error(data.error || "Upvote failed");
+  votedPosts.add(id);
+  persistVotedPosts();
+  await loadPosts(true);
+  toast.textContent = "Upvoted";
+  toast.classList.add("show");
+  window.setTimeout(() => toast.classList.remove("show"), 1500);
+}
+
+function renderComments(id, comments) {
+  const list = document.querySelector(`[data-comment-list="${CSS.escape(id)}"]`);
+  if (!list) return;
+  list.innerHTML = comments.length ? comments.map((comment) => `
+    <article class="comment-item">
+      <strong>${escapeHtml(comment.name || "Anonymous")}</strong>
+      <p>${escapeHtml(comment.body)}</p>
+    </article>
+  `).join("") : "<p class=\"comment-empty\">No comments yet.</p>";
+}
+
+async function loadComments(id) {
+  const response = await fetch(`/api/posts/${encodeURIComponent(id)}/comments`, { cache: "no-store" });
+  const data = await response.json().catch(() => ({ error: "Could not load comments" }));
+  if (!response.ok) throw new Error(data.error || "Could not load comments");
+  renderComments(id, data.comments || []);
+}
+
+async function toggleComments(id) {
+  const panel = document.querySelector(`#comments-${CSS.escape(id)}`);
+  if (!panel) return;
+  const willOpen = panel.hidden;
+  panel.hidden = !panel.hidden;
+  if (willOpen) await loadComments(id);
+}
+
+async function submitComment(form) {
+  const id = form.dataset.commentForm;
+  const payload = {
+    name: form.elements.name.value,
+    body: form.elements.body.value
+  };
+  const response = await fetch(`/api/posts/${encodeURIComponent(id)}/comments`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({ error: "Comment failed" }));
+  if (!response.ok) throw new Error(data.error || "Comment failed");
+  form.elements.body.value = "";
+  renderComments(id, data.comments || []);
+  posts = posts.map((post) => postId(post) === id ? { ...post, commentCount: data.commentCount } : post);
+  renderPosts(activeFilter);
+  const panel = document.querySelector(`#comments-${CSS.escape(id)}`);
+  if (panel) panel.hidden = false;
+  renderComments(id, data.comments || []);
+}
+
+async function loadPosts(shouldRender = true) {
   try {
     const response = await fetch("/api/drops", { cache: "no-store" });
     if (response.ok) {
@@ -113,7 +214,7 @@ async function loadPosts() {
   }
 
   hydrateFeatured(posts[0]);
-  renderPosts();
+  if (shouldRender) renderPosts(activeFilter);
 }
 
 feedTabs.forEach((tab) => {
@@ -121,6 +222,38 @@ feedTabs.forEach((tab) => {
     feedTabs.forEach((item) => item.classList.remove("active"));
     tab.classList.add("active");
     renderPosts(tab.dataset.feedFilter);
+  });
+});
+
+postGrid.addEventListener("click", (event) => {
+  const upvoteButton = event.target.closest("[data-upvote]");
+  const commentsButton = event.target.closest("[data-comments]");
+  if (upvoteButton) {
+    upvoteButton.disabled = true;
+    upvotePost(upvoteButton.dataset.upvote).catch((error) => {
+      upvoteButton.disabled = false;
+      toast.textContent = error.message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 1500);
+    });
+  }
+  if (commentsButton) {
+    toggleComments(commentsButton.dataset.comments).catch((error) => {
+      toast.textContent = error.message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 1500);
+    });
+  }
+});
+
+postGrid.addEventListener("submit", (event) => {
+  const form = event.target.closest("[data-comment-form]");
+  if (!form) return;
+  event.preventDefault();
+  submitComment(form).catch((error) => {
+    toast.textContent = error.message;
+    toast.classList.add("show");
+    window.setTimeout(() => toast.classList.remove("show"), 1500);
   });
 });
 

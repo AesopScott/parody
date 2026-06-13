@@ -451,6 +451,89 @@ h3 {
   font-weight: 900;
 }
 
+.post-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  flex: 1;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.post-action-button span {
+  color: var(--orange-dark);
+}
+
+.post-action-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.comment-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.comment-panel[hidden] {
+  display: none;
+}
+
+.comment-form {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-form input,
+.comment-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+  font: inherit;
+}
+
+.comment-form textarea {
+  resize: vertical;
+}
+
+.comment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-item {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--wash);
+}
+
+.comment-item strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.comment-item p,
+.comment-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
 .grid-section,
 .queue {
   padding: 74px 0 0;
