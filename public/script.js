@@ -1,69 +1,23 @@
 const toast = document.querySelector(".toast");
 const postGrid = document.querySelector(".post-grid");
 const feedTabs = document.querySelectorAll("[data-feed-filter]");
+const siteOrigin = "https://parodyai.win";
 
-const posts = [
+const fallbackPosts = [
   {
     title: "Stop Using Claude for Normal Human Tasks",
     tag: "local",
     image: "/drops/claude-uses-parody.png",
     caption: "Replying to sounds good, choosing lunch, and turning vibes into quarterly planning.",
+    shareCaption: "I made a high-res workflow sheet for the most important Claude use cases: replying to \"sounds good,\" choosing lunch, and converting anxiety into roadmaps. Please download before you accidentally trust your instincts.",
     comments: 42,
     boosts: 318,
     likes: 1200,
     url: "/drops/claude-uses-parody.png"
-  },
-  {
-    title: "The 7-Agent Lunch Decision Stack",
-    tag: "trending",
-    image: "/drops/claude-uses-parody.png",
-    caption: "One planner, one critic, one agent that asks whether soup aligns with the roadmap.",
-    comments: 19,
-    boosts: 144,
-    likes: 864,
-    url: "#queue"
-  },
-  {
-    title: "Morning Routine Governance Layer",
-    tag: "collections",
-    image: "/drops/claude-uses-parody.png",
-    caption: "A responsible operating model for toothbrush throughput and pajama deprecation.",
-    comments: 27,
-    boosts: 201,
-    likes: 990,
-    url: "#queue"
-  },
-  {
-    title: "Eye Contact at Scale",
-    tag: "trending",
-    image: "/drops/claude-uses-parody.png",
-    caption: "Automated social presence for leaders who need to appear extremely in the room.",
-    comments: 33,
-    boosts: 256,
-    likes: 1100,
-    url: "#queue"
-  },
-  {
-    title: "The Personal Brand Incident Review",
-    tag: "local",
-    image: "/drops/claude-uses-parody.png",
-    caption: "A blameless postmortem for the time a normal sentence escaped without a framework.",
-    comments: 14,
-    boosts: 98,
-    likes: 740,
-    url: "#queue"
-  },
-  {
-    title: "Collections of Unnecessary Systems",
-    tag: "collections",
-    image: "/drops/claude-uses-parody.png",
-    caption: "Reusable parody formats for screenshots that should have stayed in drafts.",
-    comments: 11,
-    boosts: 87,
-    likes: 603,
-    url: "#queue"
   }
 ];
+
+let posts = fallbackPosts;
 
 async function copyText(selector) {
   const target = document.querySelector(selector);
@@ -79,7 +33,40 @@ document.querySelectorAll("[data-copy]").forEach((button) => {
 });
 
 function formatCount(count) {
-  return Intl.NumberFormat("en", { notation: "compact" }).format(count);
+  return Intl.NumberFormat("en", { notation: "compact" }).format(count || 0);
+}
+
+function shareUrlFor(post) {
+  const target = post.image?.startsWith("http")
+    ? post.image
+    : `${siteOrigin}${post.image || "/"}`;
+  return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(target)}`;
+}
+
+function hydrateFeatured(post) {
+  if (!post) return;
+
+  const title = document.querySelector("#drops-title");
+  const description = document.querySelector("#featured-description");
+  const share = document.querySelector("#featured-share");
+  const download = document.querySelector("#featured-download");
+  const caption = document.querySelector("#caption-1");
+  const imageLink = document.querySelector("#featured-image-link");
+  const image = document.querySelector("#featured-image");
+
+  if (title) title.textContent = post.title;
+  if (description) description.textContent = post.caption;
+  if (share) share.href = shareUrlFor(post);
+  if (download) download.href = post.image;
+  if (caption) caption.textContent = post.shareCaption || post.caption;
+  if (imageLink) {
+    imageLink.href = post.url || post.image;
+    imageLink.setAttribute("aria-label", `Open ${post.title}`);
+  }
+  if (image) {
+    image.src = post.image;
+    image.alt = `Satirical infographic titled ${post.title}`;
+  }
 }
 
 function renderPosts(filter = "local") {
@@ -89,7 +76,7 @@ function renderPosts(filter = "local") {
 
   postGrid.innerHTML = visiblePosts.map((post) => `
     <article class="post-card">
-      <a class="post-media" href="${post.url}" aria-label="Open ${post.title}">
+      <a class="post-media" href="${post.url || post.image}" aria-label="Open ${post.title}">
         <img src="${post.image}" alt="${post.title}">
         <span class="post-badge">${post.tag}</span>
         <span class="post-overlay">
@@ -112,6 +99,20 @@ function renderPosts(filter = "local") {
   `).join("");
 }
 
+async function loadPosts() {
+  try {
+    const response = await fetch("/drops.json", { cache: "no-store" });
+    if (response.ok) {
+      posts = await response.json();
+    }
+  } catch {
+    posts = fallbackPosts;
+  }
+
+  hydrateFeatured(posts[0]);
+  renderPosts();
+}
+
 feedTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     feedTabs.forEach((item) => item.classList.remove("active"));
@@ -120,4 +121,4 @@ feedTabs.forEach((tab) => {
   });
 });
 
-renderPosts();
+loadPosts();
