@@ -203,6 +203,11 @@ h3 {
   color: #fff;
 }
 
+.button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .button.ghost {
   color: var(--orange-dark);
 }
@@ -603,6 +608,45 @@ footer span:first-child {
 
 .studio-result {
   margin-top: 22px;
+}
+
+.studio-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  margin: -14px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.studio-status[data-state="working"] {
+  color: var(--orange-dark);
+}
+
+.studio-status[data-state="working"]::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(240, 68, 24, 0.25);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.studio-status[data-state="done"] {
+  color: var(--green);
+}
+
+.studio-status[data-state="needs-work"] {
+  color: var(--orange-dark);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .admin-login {
