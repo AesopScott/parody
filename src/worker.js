@@ -153,7 +153,16 @@ function wrapWords(value, maxChars, maxLines) {
     }
   }
   if (current && lines.length < maxLines) lines.push(current);
-  return lines;
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const match = lines[index].match(/^(.*)\s+\b(a|an|and|as|at|by|for|from|in|into|of|or|the|to|with)\.?$/i);
+    if (!match) continue;
+    const movedWord = match[2];
+    const nextLine = `${movedWord} ${lines[index + 1]}`;
+    if (nextLine.length > maxChars + 6) continue;
+    lines[index] = match[1].trim();
+    lines[index + 1] = nextLine.trim();
+  }
+  return lines.filter(Boolean);
 }
 
 function textBlock(value, x, y, maxChars, maxLines, lineHeight, options = {}) {
@@ -233,32 +242,51 @@ function isBlandParodyText(value) {
   return /\b(101|advanced topics|best practices|course|courses|foundation|foundations|getting started|in action|laugh|master|mastering|maximize|minimize|must-take|potential|productivity|transform|transforming|triumph|unlock|unlocking)\b/i.test(String(value || ""));
 }
 
+function isIncompleteFragment(value) {
+  const text = String(value || "").trim();
+  if (!text) return true;
+  return /\b(a|an|and|as|at|by|for|from|in|into|of|or|the|to|with)\.?$/i.test(text);
+}
+
+function sliceAtWord(value, maxLength) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text;
+  const sliced = text.slice(0, maxLength + 1);
+  const boundary = sliced.lastIndexOf(" ");
+  return (boundary > Math.floor(maxLength * 0.6) ? sliced.slice(0, boundary) : text.slice(0, maxLength)).trim();
+}
+
+function cleanParodyField(value, fallback, maxLength, options = {}) {
+  const { rejectBland = false } = options;
+  const text = sliceAtWord(value || fallback, maxLength);
+  if (isIncompleteFragment(text)) return sliceAtWord(fallback, maxLength);
+  if (rejectBland && isBlandParodyText(text)) return sliceAtWord(fallback, maxLength);
+  return text;
+}
+
 function normalizeParodyCopy(value, fileName, direction) {
   const fallback = defaultParodyCopy(fileName, direction);
   const sections = Array.isArray(value?.sections) ? value.sections : [];
-  const title = isBlandParodyText(value?.title) ? fallback.title : String(value?.title || fallback.title);
-  const subtitle = isBlandParodyText(value?.subtitle) ? fallback.subtitle : String(value?.subtitle || fallback.subtitle);
   return {
     ...fallback,
     ...value,
-    title: title.slice(0, 90),
-    subtitle: subtitle.slice(0, 170),
-    badge: String(value?.badge || fallback.badge).slice(0, 34),
+    title: cleanParodyField(value?.title, fallback.title, 62, { rejectBland: true }),
+    subtitle: cleanParodyField(value?.subtitle, fallback.subtitle, 155, { rejectBland: true }),
+    badge: cleanParodyField(value?.badge, fallback.badge, 22, { rejectBland: true }),
     sections: fallback.sections.map((fallbackSection, index) => {
       const section = sections[index] || {};
-      const heading = isBlandParodyText(section.heading) ? fallbackSection.heading : String(section.heading || fallbackSection.heading);
       return {
-        heading: heading.slice(0, 42),
-        metric: String(section.metric || fallbackSection.metric).slice(0, 42),
-        body: String(section.body || fallbackSection.body).slice(0, 135),
-        protocol: String(section.protocol || fallbackSection.protocol).slice(0, 70),
-        wastes: String(section.wastes || fallbackSection.wastes).slice(0, 34),
-        saves: String(section.saves || fallbackSection.saves).slice(0, 34),
-        slogan: String(section.slogan || fallbackSection.slogan).slice(0, 45)
+        heading: cleanParodyField(section.heading, fallbackSection.heading, 38, { rejectBland: true }),
+        metric: cleanParodyField(section.metric, fallbackSection.metric, 34),
+        body: cleanParodyField(section.body, fallbackSection.body, 120),
+        protocol: cleanParodyField(section.protocol, fallbackSection.protocol, 62),
+        wastes: cleanParodyField(section.wastes, fallbackSection.wastes, 28),
+        saves: cleanParodyField(section.saves, fallbackSection.saves, 28),
+        slogan: cleanParodyField(section.slogan, fallbackSection.slogan, 38)
       };
     }),
-    quote: String(value?.quote || fallback.quote).slice(0, 100),
-    footer: String(value?.footer || fallback.footer).slice(0, 90)
+    quote: cleanParodyField(value?.quote, fallback.quote, 88, { rejectBland: true }),
+    footer: cleanParodyField(value?.footer, fallback.footer, 82, { rejectBland: true })
   };
 }
 
