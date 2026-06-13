@@ -298,10 +298,10 @@ function renderParodySvg(copy, metadata) {
     <text x="846" y="146" text-anchor="middle" font-size="86" font-weight="950" fill="#f04418">*</text>
     <rect x="717" y="42" width="250" height="46" rx="23" fill="#f04418"/>
     <text x="842" y="72" text-anchor="middle" font-size="19" font-weight="900" fill="#fff">${xmlEscape(copy.badge)}</text>
-    ${textBlock(copy.title, 56, 88, 28, 2, 60, { size: 58, weight: 950 })}
-    ${textBlock(copy.subtitle, 58, 202, 54, 2, 31, { size: 25, weight: 650, fill: "#303640" })}
-    <line x1="58" y1="302" x2="966" y2="302" stroke="#f04418" stroke-width="3"/>
-    <text x="58" y="281" font-size="34" font-weight="950" fill="#111217">6 Absurd Habits That Save Face</text>
+    ${textBlock(copy.title, 56, 76, 18, 3, 54, { size: 54, weight: 950 })}
+    ${textBlock(copy.subtitle, 58, 230, 54, 2, 31, { size: 25, weight: 650, fill: "#303640" })}
+    <line x1="58" y1="322" x2="966" y2="322" stroke="#f04418" stroke-width="3"/>
+    <text x="58" y="301" font-size="34" font-weight="950" fill="#111217">6 Absurd Habits That Save Face</text>
     ${cards}
     <rect x="146" y="1262" width="732" height="94" rx="20" fill="#fff" stroke="#e1d1c4" stroke-width="3"/>
     <text x="198" y="1318" font-size="42" font-weight="950" fill="#111217">“</text>
