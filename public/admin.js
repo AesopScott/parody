@@ -65,7 +65,7 @@ async function approve(id) {
     body: JSON.stringify({ id })
   });
   showToast("Published");
-  setAdminStatus("Published. Removed from approval queue.", "done");
+  setAdminStatus("Published to the public feed. Removed from approval queue.", "done");
   window.open(result.liveUrl, "_blank", "noopener,noreferrer");
   loadPending();
 }

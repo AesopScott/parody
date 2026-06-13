@@ -101,7 +101,7 @@ function renderPosts(filter = "local") {
 
 async function loadPosts() {
   try {
-    const response = await fetch("/drops.json", { cache: "no-store" });
+    const response = await fetch("/api/drops", { cache: "no-store" });
     if (response.ok) {
       posts = await response.json();
     }

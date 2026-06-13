@@ -665,7 +665,8 @@ async function handleApprove(request, env) {
   return json({
     status: "approved",
     entry: approvedEntry,
-    liveUrl: `${publicOrigin(request)}${approvedEntry.image}`
+    liveUrl: `${publicOrigin(request)}/#fediverse`,
+    imageUrl: `${publicOrigin(request)}${approvedEntry.image}`
   });
 }
 
