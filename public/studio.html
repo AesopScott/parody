@@ -14,48 +14,37 @@
     </a>
     <nav class="nav">
       <a href="/">Public site</a>
-      <a href="#pending">Pending</a>
+      <a href="/admin.html">Admin</a>
     </nav>
   </header>
 
   <main>
     <section class="intro studio-intro">
       <div class="intro-copy">
-        <p class="eyebrow">Approval console</p>
-        <h1>Upload, review, approve, publish.</h1>
-        <p class="lede">This is the web version of the local approval step. Nothing goes live until an admin approves it.</p>
+        <p class="eyebrow">Generation workspace</p>
+        <h1>Make the parody first. Approve it somewhere else.</h1>
+        <p class="lede">Use this page to shape a drop: source image, title, caption, and publishing metadata. Admin approval lives on its own page.</p>
       </div>
       <div class="status-card">
         <span class="status-dot"></span>
         <div>
-          <strong>Approval gated</strong>
-          <span>Use your admin token to submit and approve drops.</span>
+          <strong>Studio mode</strong>
+          <span>No approval controls here. Use Admin when the image is ready.</span>
         </div>
       </div>
     </section>
 
     <section class="studio-shell">
-      <form class="studio-form" id="token-form">
-        <h2>Admin login</h2>
-        <label>Username
-          <input name="username" type="text" autocomplete="username" value="none" placeholder="Username">
-        </label>
-        <label>Password
-          <input name="password" type="password" autocomplete="current-password" placeholder="Password">
-        </label>
-        <button class="button primary" type="submit">Save login</button>
-      </form>
-
       <form class="studio-form" id="drop-form">
-        <h2>Submit pending drop</h2>
-        <label>Approved PNG
-          <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
+        <h2>Prepare a drop</h2>
+        <label>Source or finished PNG
+          <input name="image" type="file" accept="image/png,image/jpeg,image/webp">
         </label>
         <label>Title
-          <input name="title" required placeholder="Stop Using Claude for Normal Human Tasks">
+          <input name="title" placeholder="Stop Using Claude for Normal Human Tasks">
         </label>
         <label>Feed caption
-          <textarea name="caption" rows="3" required placeholder="Short caption for the gallery"></textarea>
+          <textarea name="caption" rows="3" placeholder="Short caption for the gallery"></textarea>
         </label>
         <label>LinkedIn caption
           <textarea name="shareCaption" rows="4" placeholder="Longer caption people can copy"></textarea>
@@ -63,23 +52,22 @@
         <label>Slug
           <input name="slug" placeholder="claude-uses-parody">
         </label>
-        <button class="button primary" type="submit">Submit for approval</button>
-      </form>
-    </section>
-
-    <section class="pixelfed-shell" id="pending">
-      <div class="profile-title-row">
-        <div>
-          <p class="eyebrow">Pending queue</p>
-          <h2>Approve the image, then it goes live.</h2>
+        <div class="actions compact-actions">
+          <button class="button primary" type="button" id="copy-brief">Copy brief</button>
+          <a class="button" href="/admin.html">Go to Admin approval</a>
         </div>
-        <button class="button" id="refresh-pending" type="button">Refresh</button>
+      </form>
+
+      <div class="caption-card">
+        <div class="caption-head">
+          <span>Studio note</span>
+        </div>
+        <p id="studio-output">Fill out the drop details, copy the brief, generate/export the image, then use Admin approval to publish.</p>
       </div>
-      <div class="post-grid pending-grid" id="pending-grid"></div>
     </section>
   </main>
 
-  <div class="toast" role="status" aria-live="polite">Done</div>
+  <div class="toast" role="status" aria-live="polite">Copied</div>
   <script src="/studio.js"></script>
 </body>
 </html>
