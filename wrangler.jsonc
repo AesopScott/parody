@@ -9,6 +9,12 @@
     "run_worker_first": true,
     "not_found_handling": "single-page-application"
   },
+  "kv_namespaces": [
+    {
+      "binding": "PARODY_DROPS",
+      "id": "5ab8444aea2545fd9e5df736011cdb2d"
+    }
+  ],
   "routes": [
     {
       "pattern": "parodyai.win",

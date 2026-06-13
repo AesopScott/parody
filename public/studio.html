@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parody AI Studio</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark">✱</span>
+      <span>Parody AI Studio</span>
+    </a>
+    <nav class="nav">
+      <a href="/">Public site</a>
+      <a href="#pending">Pending</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro studio-intro">
+      <div class="intro-copy">
+        <p class="eyebrow">Approval console</p>
+        <h1>Upload, review, approve, publish.</h1>
+        <p class="lede">This is the web version of the local approval step. Nothing goes live until an admin approves it.</p>
+      </div>
+      <div class="status-card">
+        <span class="status-dot"></span>
+        <div>
+          <strong>Approval gated</strong>
+          <span>Use your admin token to submit and approve drops.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="studio-shell">
+      <form class="studio-form" id="token-form">
+        <h2>Admin token</h2>
+        <label>Token
+          <input name="token" type="password" autocomplete="current-password" placeholder="Paste admin token">
+        </label>
+        <button class="button primary" type="submit">Save token</button>
+      </form>
+
+      <form class="studio-form" id="drop-form">
+        <h2>Submit pending drop</h2>
+        <label>Approved PNG
+          <input name="image" type="file" accept="image/png,image/jpeg,image/webp" required>
+        </label>
+        <label>Title
+          <input name="title" required placeholder="Stop Using Claude for Normal Human Tasks">
+        </label>
+        <label>Feed caption
+          <textarea name="caption" rows="3" required placeholder="Short caption for the gallery"></textarea>
+        </label>
+        <label>LinkedIn caption
+          <textarea name="shareCaption" rows="4" placeholder="Longer caption people can copy"></textarea>
+        </label>
+        <label>Slug
+          <input name="slug" placeholder="claude-uses-parody">
+        </label>
+        <button class="button primary" type="submit">Submit for approval</button>
+      </form>
+    </section>
+
+    <section class="pixelfed-shell" id="pending">
+      <div class="profile-title-row">
+        <div>
+          <p class="eyebrow">Pending queue</p>
+          <h2>Approve the image, then it goes live.</h2>
+        </div>
+        <button class="button" id="refresh-pending" type="button">Refresh</button>
+      </div>
+      <div class="post-grid pending-grid" id="pending-grid"></div>
+    </section>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite">Done</div>
+  <script src="/studio.js"></script>
+</body>
+</html>
