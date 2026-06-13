@@ -164,7 +164,7 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const payload = new FormData();
-    const imageName = `${generated.slug || "parody-output"}.png`;
+    const imageName = `${generated.slug || "parody-output"}.${generatedImageBlob.type === "image/svg+xml" ? "svg" : "png"}`;
     payload.set("image", generatedImageBlob, imageName);
     payload.set("direction", directionInput.value.trim());
     payload.set("title", generated.title || "");
