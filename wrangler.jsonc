@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aiparody-win",
+  "compatibility_date": "2026-06-13",
+  "main": "./src/worker.js",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "aiparody.win",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.aiparody.win",
+      "custom_domain": true
+    }
+  ]
+}
