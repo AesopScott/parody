@@ -11,7 +11,6 @@ const generatedTitle = document.querySelector("#generated-title");
 const generatedCaption = document.querySelector("#generated-caption");
 const toast = document.querySelector(".toast");
 const GENERATE_TIMEOUT_MS = 60000;
-const CANVA_FACTORY_URL = "http://127.0.0.1:3001";
 
 let generated = null;
 let generatedImageBlob = null;
@@ -99,8 +98,6 @@ directionInput.addEventListener("input", () => {
 });
 
 generateButton.addEventListener("click", () => {
-  window.location.href = CANVA_FACTORY_URL;
-  return;
   generateButton.disabled = true;
   generateButton.textContent = "Generating...";
   generateButton.setAttribute("aria-busy", "true");

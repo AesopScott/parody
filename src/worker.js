@@ -2,7 +2,7 @@ const APPROVED_INDEX = "approved:index";
 const PENDING_INDEX = "pending:index";
 const MAX_IMAGE_BYTES = 1024 * 1024 * 8;
 const OPENAI_TIMEOUT_MS = 35000;
-const APP_VERSION = "0.1.5";
+const APP_VERSION = "0.2.1";
 
 function json(value, init = {}) {
   return new Response(JSON.stringify(value, null, 2), {
