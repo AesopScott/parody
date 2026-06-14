@@ -1,8 +1,20 @@
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+
 const APPROVED_INDEX = "approved:index";
 const PENDING_INDEX = "pending:index";
 const MAX_IMAGE_BYTES = 1024 * 1024 * 8;
 const OPENAI_TIMEOUT_MS = 35000;
-const APP_VERSION = "0.2.1";
+const APP_VERSION = "0.3.0-canva";
+const CANVA_SCOPES = [
+  "design:content:read",
+  "design:content:write",
+  "design:meta:read",
+  "asset:read",
+  "asset:write",
+  "brandtemplate:meta:read",
+  "brandtemplate:content:read",
+  "profile:read"
+].join(" ");
 
 function json(value, init = {}) {
   return new Response(JSON.stringify(value, null, 2), {
@@ -38,10 +50,162 @@ function unauthorized() {
   return json({ error: "Admin approval token required." }, { status: 401 });
 }
 
+function redirect(location, init = {}) {
+  return new Response(null, {
+    status: init.status || 302,
+    headers: {
+      location,
+      ...(init.headers || {})
+    }
+  });
+}
+
 function requestError(message, status = 500) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function parseCookies(request) {
+  return Object.fromEntries(
+    String(request.headers.get("cookie") || "")
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .filter(Boolean)
+      .map((cookie) => {
+        const index = cookie.indexOf("=");
+        if (index === -1) return [cookie, ""];
+        return [decodeURIComponent(cookie.slice(0, index)), decodeURIComponent(cookie.slice(index + 1))];
+      })
+  );
+}
+
+function sessionCookie(sessionId) {
+  return `canva_session=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64UrlFromBytes(bytes) {
+  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64FromText(value) {
+  return bytesToBase64(new TextEncoder().encode(value));
+}
+
+async function sha256Base64Url(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return base64UrlFromBytes(new Uint8Array(digest));
+}
+
+function randomVerifier() {
+  const bytes = new Uint8Array(64);
+  crypto.getRandomValues(bytes);
+  return base64UrlFromBytes(bytes).slice(0, 96);
+}
+
+function canvaRedirectUri(request, env) {
+  return env.CANVA_REDIRECT_URI || `${publicOrigin(request)}/oauth/canva/callback`;
+}
+
+async function canvaAuthUrl(request, env, sessionId) {
+  if (!env.CANVA_CLIENT_ID) throw requestError("Canva client ID is not configured.", 500);
+  const verifier = randomVerifier();
+  const state = crypto.randomUUID();
+  await env.PARODY_DROPS.put(`canva-oauth:${state}`, JSON.stringify({
+    verifier,
+    sessionId,
+    createdAt: new Date().toISOString()
+  }), { expirationTtl: 600 });
+
+  const url = new URL("https://www.canva.com/api/oauth/authorize");
+  url.searchParams.set("code_challenge", await sha256Base64Url(verifier));
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("scope", env.CANVA_SCOPES || CANVA_SCOPES);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", env.CANVA_CLIENT_ID);
+  url.searchParams.set("state", state);
+  url.searchParams.set("redirect_uri", canvaRedirectUri(request, env));
+  return url.toString();
+}
+
+async function exchangeCanvaToken(request, env, code, verifier) {
+  if (!env.CANVA_CLIENT_ID || !env.CANVA_CLIENT_SECRET) {
+    throw requestError("Canva OAuth credentials are not configured.", 500);
+  }
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code_verifier: verifier,
+    code,
+    redirect_uri: canvaRedirectUri(request, env)
+  });
+  const response = await fetch("https://api.canva.com/rest/v1/oauth/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${base64FromText(`${env.CANVA_CLIENT_ID}:${env.CANVA_CLIENT_SECRET}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw requestError(payload.message || `Canva token exchange failed with ${response.status}.`, response.status);
+  }
+  return payload;
+}
+
+async function refreshCanvaToken(env, token) {
+  if (!token?.refresh_token) throw requestError("Canva session expired. Please reconnect Canva.", 401);
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: token.refresh_token
+  });
+  const response = await fetch("https://api.canva.com/rest/v1/oauth/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${base64FromText(`${env.CANVA_CLIENT_ID}:${env.CANVA_CLIENT_SECRET}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw requestError(payload.message || "Canva session expired. Please reconnect Canva.", 401);
+  }
+  return payload;
+}
+
+function canvaSessionId(request) {
+  return parseCookies(request).canva_session || crypto.randomUUID();
+}
+
+async function saveCanvaToken(env, sessionId, token) {
+  const expiresAt = Date.now() + Math.max(60, Number(token.expires_in || 3600) - 60) * 1000;
+  await env.PARODY_DROPS.put(`canva-token:${sessionId}`, JSON.stringify({ ...token, expiresAt }), {
+    expirationTtl: 60 * 60 * 24 * 30
+  });
+}
+
+async function canvaAccessToken(request, env) {
+  const sessionId = canvaSessionId(request);
+  const token = await env.PARODY_DROPS.get(`canva-token:${sessionId}`, "json");
+  if (!token) {
+    return { sessionId, token: null, authUrl: await canvaAuthUrl(request, env, sessionId) };
+  }
+  if (Date.now() > Number(token.expiresAt || 0)) {
+    const refreshed = await refreshCanvaToken(env, token);
+    await saveCanvaToken(env, sessionId, refreshed);
+    return { sessionId, token: refreshed };
+  }
+  return { sessionId, token };
 }
 
 function adminToken(request) {
@@ -97,7 +261,7 @@ function studioPage() {
   <main class="studio-workspace">
     <section class="studio-input-panel" aria-labelledby="studio-title">
       <p class="eyebrow">Generate a parody</p>
-      <h1 id="studio-title">Upload. Generate. Submit.</h1>
+      <h1 id="studio-title">Upload. Generate in Canva. Submit.</h1>
 
       <form id="studio-form" class="single-studio-form">
         <label class="upload-box">
@@ -124,18 +288,18 @@ function studioPage() {
 
     <section class="studio-output-panel" aria-labelledby="output-title">
       <div class="studio-output-head">
-        <p class="eyebrow">Generated image</p>
+        <p class="eyebrow">Canva output</p>
         <h2 id="output-title">Output</h2>
       </div>
       <div class="generated-preview" id="generated-preview">
-        <span>Generate to see the parody image.</span>
+        <span>Generate to create an editable Canva design.</span>
       </div>
       <div class="caption-card studio-result" id="studio-result" hidden>
         <div class="caption-head">
-          <span>Generated drop</span>
+          <span>Generated Canva drop</span>
         </div>
         <p id="generated-title">Ready for review</p>
-        <p id="generated-caption">Submit sends this to the admin approval queue.</p>
+        <p id="generated-caption">Submit exports the Canva design to the admin approval queue.</p>
       </div>
     </section>
   </main>
@@ -536,6 +700,256 @@ function svgDataUrl(svg) {
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
+function pdfColor(hex) {
+  const clean = hex.replace("#", "");
+  return rgb(
+    parseInt(clean.slice(0, 2), 16) / 255,
+    parseInt(clean.slice(2, 4), 16) / 255,
+    parseInt(clean.slice(4, 6), 16) / 255
+  );
+}
+
+function pdfWrap(value, maxChars, maxLines = 3) {
+  return wrapWords(value, maxChars, maxLines);
+}
+
+function pdfText(page, value, x, y, options) {
+  const {
+    font,
+    size = 18,
+    color = "#111217",
+    maxChars = 40,
+    maxLines = 2,
+    lineHeight = size * 1.15
+  } = options;
+  pdfWrap(value, maxChars, maxLines).forEach((line, index) => {
+    page.drawText(line, {
+      x,
+      y: y - index * lineHeight,
+      size,
+      font,
+      color: pdfColor(color)
+    });
+  });
+}
+
+function drawRoundRect(page, x, y, width, height, options = {}) {
+  page.drawRectangle({
+    x,
+    y,
+    width,
+    height,
+    borderWidth: options.borderWidth ?? 1.5,
+    borderColor: pdfColor(options.borderColor || "#eaded2"),
+    color: pdfColor(options.color || "#fffefa"),
+    opacity: options.opacity ?? 1
+  });
+}
+
+async function renderCanvaPdf(copy, metadata) {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([1600, 2000]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const italic = await pdf.embedFont(StandardFonts.HelveticaOblique);
+  const accent = "#f04a16";
+  const green = "#1f7a4d";
+  const muted = "#4b5563";
+
+  page.drawRectangle({ x: 0, y: 0, width: 1600, height: 2000, color: pdfColor("#fffdf8") });
+  page.drawRectangle({ x: 0, y: 0, width: 1600, height: 78, color: pdfColor("#df7654") });
+
+  pdfText(page, copy.title, 36, 1950, { font: bold, size: 78, maxChars: 23, maxLines: 3, lineHeight: 82 });
+  pdfText(page, copy.subtitle, 36, 1720, { font, size: 29, maxChars: 78, maxLines: 2, lineHeight: 34, color: "#20242b" });
+  drawRoundRect(page, 1280, 1910, 260, 56, { color: accent, borderColor: accent, borderWidth: 0 });
+  pdfText(page, copy.badge || "Parody Workflow", 1310, 1930, { font: bold, size: 24, color: "#ffffff", maxChars: 22, maxLines: 1 });
+  page.drawCircle({ x: 1365, y: 1818, size: 74, color: pdfColor("#ffe0c7"), borderColor: pdfColor("#2a2a2a"), borderWidth: 4 });
+  pdfText(page, "*", 1342, 1792, { font: bold, size: 86, color: accent, maxChars: 1, maxLines: 1 });
+
+  pdfText(page, `* ${copy.sectionLabel || "5 Habits That Save Face"}`, 36, 1620, { font: bold, size: 38, maxChars: 64, maxLines: 1 });
+  page.drawLine({ start: { x: 565, y: 1625 }, end: { x: 1560, y: 1625 }, thickness: 3, color: pdfColor(accent) });
+
+  const habits = copy.sections.slice(0, 5);
+  habits.forEach((section, index) => {
+    const x = 36 + index * 326;
+    const y = 1010;
+    drawRoundRect(page, x, y, 300, 560);
+    page.drawCircle({ x: x + 38, y: y + 520, size: 18, color: pdfColor(accent) });
+    pdfText(page, String(index + 1), x + 29, y + 512, { font: bold, size: 20, color: "#ffffff", maxChars: 2, maxLines: 1 });
+    pdfText(page, section.heading, x + 70, y + 535, { font: bold, size: 27, maxChars: 15, maxLines: 3, lineHeight: 28 });
+    pdfText(page, section.body, x + 22, y + 450, { font, size: 21, maxChars: 24, maxLines: 6, lineHeight: 25, color: "#20242b" });
+    drawRoundRect(page, x + 22, y + 78, 124, 74, { color: "#fff0e7", borderColor: "#fff0e7" });
+    drawRoundRect(page, x + 166, y + 78, 124, 74, { color: "#edf8ef", borderColor: "#edf8ef" });
+    pdfText(page, "WASTES", x + 34, y + 128, { font: bold, size: 15, color: accent, maxChars: 8, maxLines: 1 });
+    pdfText(page, section.wastes, x + 34, y + 106, { font: bold, size: 14, maxChars: 12, maxLines: 2, lineHeight: 16 });
+    pdfText(page, "SAVES", x + 178, y + 128, { font: bold, size: 15, color: green, maxChars: 8, maxLines: 1 });
+    pdfText(page, section.saves, x + 178, y + 106, { font: bold, size: 14, maxChars: 12, maxLines: 2, lineHeight: 16 });
+    pdfText(page, section.slogan || section.protocol, x + 22, y + 38, { font: bold, size: 16, maxChars: 25, maxLines: 1 });
+  });
+
+  pdfText(page, "* Pick the Right Persona", 36, 955, { font: bold, size: 38, maxChars: 32, maxLines: 1 });
+  page.drawLine({ start: { x: 570, y: 960 }, end: { x: 1560, y: 960 }, thickness: 3, color: pdfColor(accent) });
+  const tiers = [
+    { title: "Intern Mode", description: "Lowest energy commitment.", color: green, width: 0.28 },
+    { title: "Founder Mode", description: "Balanced expectation and presence.", color: "#5b35c8", width: 0.52 },
+    { title: "Visionary Mode", description: "Maximum certainty with social risk.", color: accent, width: 0.78 }
+  ];
+  tiers.forEach((tier, index) => {
+    const x = 36 + index * 520;
+    const y = 655;
+    drawRoundRect(page, x, y, 492, 250);
+    page.drawCircle({ x: x + 52, y: y + 182, size: 30, color: pdfColor(tier.color) });
+    pdfText(page, String(index + 1), x + 43, y + 173, { font: bold, size: 28, color: "#ffffff", maxChars: 2, maxLines: 1 });
+    pdfText(page, tier.title, x + 26, y + 130, { font: bold, size: 36, maxChars: 20, maxLines: 1 });
+    pdfText(page, tier.description, x + 26, y + 88, { font, size: 21, maxChars: 42, maxLines: 1 });
+    drawRoundRect(page, x + 26, y + 28, 440, 20, { color: "#e7e1da", borderColor: "#e7e1da" });
+    drawRoundRect(page, x + 26, y + 28, 440 * tier.width, 20, { color: accent, borderColor: accent });
+  });
+
+  pdfText(page, "“", 420, 600, { font: bold, size: 52, maxChars: 1, maxLines: 1 });
+  pdfText(page, copy.quote || "If it fits in a card, it counts as strategy.", 470, 592, { font: italic, size: 27, maxChars: 70, maxLines: 2, lineHeight: 32 });
+
+  pdfText(page, "* Set Once, Perform Forever", 36, 500, { font: bold, size: 38, maxChars: 36, maxLines: 1 });
+  page.drawLine({ start: { x: 640, y: 505 }, end: { x: 1560, y: 505 }, thickness: 3, color: pdfColor(accent) });
+  const setup = [
+    ["Set Up Preferences", "Store your role, tone, and refusal to sound normal once.", "Runs forever."],
+    ["Use Projects", "Upload your anxieties once. Reference them in every meeting.", "Spiral forever."],
+    ["Pin a Style", "Lock a reusable self for each stakeholder audience.", "Reuse persona."]
+  ];
+  setup.forEach((item, index) => {
+    const x = 36 + index * 520;
+    const y = 190;
+    drawRoundRect(page, x, y, 492, 245);
+    page.drawCircle({ x: x + 38, y: y + 198, size: 18, color: pdfColor(accent) });
+    pdfText(page, String(index + 6), x + 29, y + 190, { font: bold, size: 20, color: "#ffffff", maxChars: 2, maxLines: 1 });
+    pdfText(page, item[0], x + 72, y + 208, { font: bold, size: 27, maxChars: 22, maxLines: 1 });
+    pdfText(page, item[1], x + 22, y + 150, { font, size: 20, maxChars: 42, maxLines: 2, lineHeight: 24 });
+    drawRoundRect(page, x + 22, y + 48, 448, 56, { color: "#f6efe6", borderColor: "#ded2c5" });
+    pdfText(page, item[2], x + 40, y + 68, { font: bold, size: 19, color: green, maxChars: 30, maxLines: 1 });
+  });
+
+  pdfText(page, `Generated from ${metadata.sourceName || "uploaded source"} - Parody AI / Canva import`, 36, 108, {
+    font: bold,
+    size: 14,
+    color: "#8b6e60",
+    maxChars: 90,
+    maxLines: 1
+  });
+  pdfText(page, copy.footer || "Download this completely unnecessary sheet from parodyai.win", 0, 44, {
+    font: bold,
+    size: 30,
+    maxChars: 75,
+    maxLines: 1
+  });
+
+  return pdf.save();
+}
+
+async function importCanvaDesign(env, accessToken, pdfBytes, title) {
+  const response = await fetch("https://api.canva.com/rest/v1/imports", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/octet-stream",
+      "Import-Metadata": JSON.stringify({
+        title_base64: base64FromText(String(title || "Parody AI Design").slice(0, 50)),
+        mime_type: "application/pdf"
+      })
+    },
+    body: pdfBytes
+  });
+  const created = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw requestError(created.message || `Canva import failed with ${response.status}.`, response.status);
+  }
+
+  const jobId = created.job?.id || created.id;
+  if (!jobId) return { raw: created };
+
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const statusResponse = await fetch(`https://api.canva.com/rest/v1/imports/${encodeURIComponent(jobId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const status = await statusResponse.json().catch(() => ({}));
+    if (!statusResponse.ok) {
+      throw requestError(status.message || `Canva import status failed with ${statusResponse.status}.`, statusResponse.status);
+    }
+    const job = status.job || status;
+    if (job.status === "success" || job.status === "succeeded") {
+      const design = job.result?.designs?.[0] || job.result?.design || job.design || {};
+      return {
+        jobId,
+        status: job.status,
+        design,
+        designUrl: design.urls?.edit_url || design.urls?.view_url || design.edit_url || design.url || null,
+        raw: status
+      };
+    }
+    if (job.status === "failed") {
+      throw requestError(job.error?.message || "Canva import failed.", 502);
+    }
+  }
+
+  throw requestError("Canva import is still processing. Try again in a moment.", 504);
+}
+
+async function exportCanvaDesign(accessToken, designId) {
+  if (!designId) throw requestError("Canva design ID is required.", 400);
+  const response = await fetch("https://api.canva.com/rest/v1/exports", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      design_id: designId,
+      format: {
+        type: "png",
+        pages: [1],
+        export_quality: "regular"
+      }
+    })
+  });
+  const created = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw requestError(created.message || `Canva export failed with ${response.status}.`, response.status);
+  }
+
+  const exportId = created.job?.id || created.id;
+  if (!exportId) throw requestError("Canva export did not return a job ID.", 502);
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const statusResponse = await fetch(`https://api.canva.com/rest/v1/exports/${encodeURIComponent(exportId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const status = await statusResponse.json().catch(() => ({}));
+    if (!statusResponse.ok) {
+      throw requestError(status.message || `Canva export status failed with ${statusResponse.status}.`, statusResponse.status);
+    }
+
+    const job = status.job || status;
+    if (job.status === "success") {
+      const downloadUrl = job.urls?.[0];
+      if (!downloadUrl) throw requestError("Canva export finished without a download URL.", 502);
+      const download = await fetch(downloadUrl);
+      if (!download.ok) throw requestError(`Could not download Canva export (${download.status}).`, 502);
+      return {
+        exportId,
+        url: downloadUrl,
+        contentType: download.headers.get("content-type") || "image/png",
+        bytes: await download.arrayBuffer()
+      };
+    }
+    if (job.status === "failed") {
+      throw requestError(job.error?.message || "Canva export failed.", 502);
+    }
+  }
+
+  throw requestError("Canva export timed out. Open Canva, wait for the design to finish saving, then submit again.", 504);
+}
+
 async function fetchWithTimeout(url, options, timeoutMs, timeoutMessage) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -693,20 +1107,45 @@ async function handlePendingList(request, env) {
 async function handleCreatePending(request, env) {
   const form = await request.formData();
   const image = form.get("image");
-  const generated = generatedMetadata(image?.name, form.get("direction"));
+  const canvaDesignId = String(form.get("canvaDesignId") || "").trim();
+  const canvaDesignUrl = String(form.get("canvaDesignUrl") || "").trim();
+  const generated = generatedMetadata(image?.name || canvaDesignId || "canva-design", form.get("direction"));
   const title = String(form.get("title") || generated.title).trim();
   const caption = String(form.get("caption") || generated.caption).trim();
   const shareCaption = String(form.get("shareCaption") || generated.shareCaption).trim();
   const tag = String(form.get("tag") || "local").trim();
 
-  if (!(image instanceof File)) return json({ error: "Image file is required." }, { status: 400 });
   if (!title || !caption) return json({ error: "Title and caption are required." }, { status: 400 });
-  if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
-  if (image.size > MAX_IMAGE_BYTES) return json({ error: "Image is too large." }, { status: 413 });
+
+  let imageBytes;
+  let imageType = "image/png";
+  if (image instanceof File) {
+    if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
+    if (image.size > MAX_IMAGE_BYTES) return json({ error: "Image is too large." }, { status: 413 });
+    imageBytes = await image.arrayBuffer();
+    imageType = image.type;
+  } else if (canvaDesignId) {
+    const canva = await canvaAccessToken(request, env);
+    if (!canva.token?.access_token) {
+      return json({
+        status: "needs_canva_auth",
+        authUrl: canva.authUrl,
+        message: "Reconnect Canva before submitting this design."
+      }, {
+        status: 401,
+        headers: { "set-cookie": sessionCookie(canva.sessionId) }
+      });
+    }
+    const exported = await exportCanvaDesign(canva.token.access_token, canvaDesignId);
+    imageBytes = exported.bytes;
+    imageType = exported.contentType;
+  } else {
+    return json({ error: "Image file or Canva design ID is required." }, { status: 400 });
+  }
 
   const id = crypto.randomUUID();
   const slug = slugify(form.get("slug") || title) || id;
-  const ext = extensionForType(image.type);
+  const ext = extensionForType(imageType);
   const imageName = `${slug}-${id.slice(0, 8)}${ext}`;
   const now = new Date().toISOString();
   const entry = {
@@ -717,6 +1156,8 @@ async function handleCreatePending(request, env) {
     caption,
     shareCaption,
     direction: generated.direction,
+    canvaDesignId,
+    canvaDesignUrl,
     comments: 0,
     boosts: 0,
     likes: 0,
@@ -725,7 +1166,7 @@ async function handleCreatePending(request, env) {
     submittedAt: now
   };
 
-  await env.PARODY_DROPS.put(`pending-image:${imageName}`, await image.arrayBuffer());
+  await env.PARODY_DROPS.put(`pending-image:${imageName}`, imageBytes);
   await env.PARODY_DROPS.put(`pending:${id}`, JSON.stringify(entry, null, 2));
 
   const pending = await readIndex(env.PARODY_DROPS, PENDING_INDEX);
@@ -740,15 +1181,28 @@ async function handleGenerate(request, env) {
   if (!(image instanceof File)) return json({ error: "Image file is required." }, { status: 400 });
   if (!image.type.startsWith("image/")) return json({ error: "Only image uploads are supported." }, { status: 400 });
   if (image.size > MAX_IMAGE_BYTES) return json({ error: "Image is too large." }, { status: 413 });
+  const canva = await canvaAccessToken(request, env);
+  if (!canva.token?.access_token) {
+    return json({
+      status: "needs_canva_auth",
+      authUrl: canva.authUrl,
+      message: "Connect Canva to generate an editable design."
+    }, {
+      status: 401,
+      headers: { "set-cookie": sessionCookie(canva.sessionId) }
+    });
+  }
   const generated = generatedMetadata(image.name, form.get("direction"));
   const generationId = crypto.randomUUID().slice(0, 8);
   generated.generationId = generationId;
+  generated.sourceName = image.name;
   const copy = await generateParodyCopy(image, generated.direction, env);
   const normalized = normalizeParodyCopy(copy, image.name, generated.direction);
   const title = normalized.title.toLowerCase().includes("parody") ? normalized.title : `Parody: ${normalized.title}`;
-  const svg = renderParodySvg(normalized, generated);
+  const pdfBytes = await renderCanvaPdf(normalized, generated);
+  const canvaImport = await importCanvaDesign(env, canva.token.access_token, pdfBytes, title);
   return json({
-    status: "generated",
+    status: "canva_imported",
     ...generated,
     title,
     caption: normalized.subtitle,
@@ -757,8 +1211,55 @@ async function handleGenerate(request, env) {
     generationId,
     sourceFormat: normalized.sourceFormat || "",
     sourceSkeleton: normalized.sourceSkeleton || "",
-    imageDataUrl: svgDataUrl(svg),
-    imageMimeType: "image/svg+xml"
+    canvaDesignUrl: canvaImport.designUrl,
+    canvaDesignId: canvaImport.design?.id || "",
+    canvaJobId: canvaImport.jobId || ""
+  }, {
+    headers: { "set-cookie": sessionCookie(canva.sessionId) }
+  });
+}
+
+async function handleCanvaAuth(request, env) {
+  const sessionId = canvaSessionId(request);
+  const authUrl = await canvaAuthUrl(request, env, sessionId);
+  return redirect(authUrl, {
+    headers: { "set-cookie": sessionCookie(sessionId) }
+  });
+}
+
+async function handleCanvaCallback(request, env) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  if (!code || !state) return html("<p>Missing Canva OAuth code or state.</p>", { status: 400 });
+
+  const saved = await env.PARODY_DROPS.get(`canva-oauth:${state}`, "json");
+  if (!saved?.verifier || !saved?.sessionId) return html("<p>Canva OAuth session expired. Return to Studio and try again.</p>", { status: 400 });
+  await env.PARODY_DROPS.delete(`canva-oauth:${state}`);
+
+  const token = await exchangeCanvaToken(request, env, code, saved.verifier);
+  await saveCanvaToken(env, saved.sessionId, token);
+
+  return html(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canva Connected</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="studio-main">
+    <section class="single-studio">
+      <p class="eyebrow">Canva connected</p>
+      <h1>Return to Studio.</h1>
+      <p class="studio-status">Canva is connected for this browser session. Generate will now create an editable Canva design.</p>
+      <p><a class="button primary" href="/studio">Open Studio</a></p>
+    </section>
+  </main>
+</body>
+</html>`, {
+    headers: { "set-cookie": sessionCookie(saved.sessionId) }
   });
 }
 
@@ -840,6 +1341,8 @@ export default {
       if (url.pathname === "/api/pending" && request.method === "POST") return handleCreatePending(request, env);
       if (url.pathname === "/api/approve" && request.method === "POST") return handleApprove(request, env);
       if (url.pathname === "/api/reject" && request.method === "POST") return handleReject(request, env);
+      if (url.pathname === "/auth/canva") return handleCanvaAuth(request, env);
+      if (url.pathname === "/oauth/canva/callback") return handleCanvaCallback(request, env);
       if (url.pathname === "/admin") return html(adminPage());
       if (url.pathname === "/studio") return html(studioPage(), { headers: { "cache-control": "no-store" } });
 

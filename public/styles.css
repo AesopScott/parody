@@ -738,6 +738,44 @@ footer span:first-child {
   object-fit: contain;
 }
 
+.canva-result {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  width: min(560px, calc(100% - 40px));
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.canva-result strong {
+  font-size: clamp(26px, 3vw, 42px);
+  line-height: 1;
+}
+
+.canva-result p {
+  max-width: 430px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.canva-result small {
+  color: var(--muted);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.canva-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .output-loading {
   display: grid;
   place-items: center;

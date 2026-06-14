@@ -10,7 +10,7 @@ const result = document.querySelector("#studio-result");
 const generatedTitle = document.querySelector("#generated-title");
 const generatedCaption = document.querySelector("#generated-caption");
 const toast = document.querySelector(".toast");
-const GENERATE_TIMEOUT_MS = 60000;
+const GENERATE_TIMEOUT_MS = 120000;
 
 let generated = null;
 let generatedImageBlob = null;
@@ -36,7 +36,16 @@ function slugify(value) {
     .slice(0, 72);
 }
 
-function resetGeneratedOutput(message = "Generate to see the parody image.") {
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function resetGeneratedOutput(message = "Generate to create an editable Canva design.") {
   generated = null;
   generatedImageBlob = null;
   if (generatedImageUrl) URL.revokeObjectURL(generatedImageUrl);
@@ -64,6 +73,25 @@ function showGeneratedImage(dataUrl, title) {
   generatedImageUrl = URL.createObjectURL(generatedImageBlob);
   generatedPreview.dataset.state = "done";
   generatedPreview.innerHTML = `<img src="${generatedImageUrl}" alt="${title || "Generated parody image"}">`;
+}
+
+function showCanvaDesign(data) {
+  generatedImageBlob = null;
+  if (generatedImageUrl) URL.revokeObjectURL(generatedImageUrl);
+  generatedImageUrl = "";
+
+  const designUrl = data.canvaDesignUrl || "";
+  generatedPreview.dataset.state = "done";
+  generatedPreview.innerHTML = `
+    <div class="canva-result">
+      <strong>Editable Canva design created</strong>
+      <p>Open the design, make any final edits, then return here and submit it to approval.</p>
+      <div class="canva-actions">
+        <a class="button primary" href="${escapeHtml(designUrl)}" target="_blank" rel="noopener">Open in Canva</a>
+      </div>
+      <small>${escapeHtml(data.canvaDesignId || data.canvaJobId || "Canva import complete")}</small>
+    </div>
+  `;
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = GENERATE_TIMEOUT_MS) {
@@ -107,13 +135,13 @@ generateButton.addEventListener("click", () => {
   generatedPreview.innerHTML = `
     <div class="output-loading">
       <span></span>
-      <strong>Generating image...</strong>
-      <small>This can take up to a minute. If it stalls, you'll get an error here.</small>
+      <strong>Generating in Canva...</strong>
+      <small>Reading the upload, writing the parody, importing an editable design, and waiting for Canva.</small>
     </div>
   `;
   generatedTitle.textContent = "Generating...";
-  generatedCaption.textContent = "Reading the image and applying your twist.";
-  setStatus("Generating parody...", "working");
+  generatedCaption.textContent = "Reading the image, applying your twist, and creating a Canva design.";
+  setStatus("Generating in Canva...", "working");
   generate().finally(() => {
     generateButton.disabled = false;
     generateButton.textContent = "Generate";
@@ -139,6 +167,19 @@ async function generate() {
       body: payload
     });
     const data = await response.json().catch(() => ({ error: "Generate failed" }));
+    if (response.status === 401 && data.status === "needs_canva_auth" && data.authUrl) {
+      generatedPreview.dataset.state = "working";
+      generatedPreview.innerHTML = `
+        <div class="output-loading">
+          <span></span>
+          <strong>Connecting Canva...</strong>
+          <small>You will come back to Studio after Canva approves the session.</small>
+        </div>
+      `;
+      setStatus(data.message || "Connect Canva to generate.", "working");
+      window.location.assign(data.authUrl);
+      return;
+    }
     if (!response.ok) {
       showToast(data.error || "Generate failed");
       setStatus(data.error || "Generate failed.", "needs-work");
@@ -147,23 +188,34 @@ async function generate() {
     }
 
     generated = data;
-    if (!generated.imageDataUrl) {
-      showToast("No image returned");
-      setStatus("No image returned.", "needs-work");
-      resetGeneratedOutput("No image returned. Try again.");
+    if (generated.status === "canva_imported") {
+      showCanvaDesign(generated);
+      generatedTitle.textContent = generated.title;
+      generatedCaption.textContent = `${generated.caption} Canva design ${generated.canvaDesignId || generated.canvaJobId || "created"}.`;
+      result.hidden = false;
+      submitButton.disabled = !generated.canvaDesignId;
+      setStatus(generated.canvaDesignId ? "Canva design created. Open it, edit if needed, then submit." : "Canva design created, but no design ID returned.", generated.canvaDesignId ? "done" : "needs-work");
+      showToast("Canva design created");
       return;
     }
 
-    showGeneratedImage(generated.imageDataUrl, generated.title);
-    generatedTitle.textContent = generated.title;
-    generatedCaption.textContent = `${generated.caption} Build ${generated.generationId || "fresh"}.`;
-    result.hidden = false;
-    submitButton.disabled = false;
-    setStatus("Generated. Review, then submit.", "done");
-    showToast("Generated");
+    if (generated.imageDataUrl) {
+      showGeneratedImage(generated.imageDataUrl, generated.title);
+      generatedTitle.textContent = generated.title;
+      generatedCaption.textContent = `${generated.caption} Build ${generated.generationId || "fresh"}.`;
+      result.hidden = false;
+      submitButton.disabled = false;
+      setStatus("Generated. Review, then submit.", "done");
+      showToast("Generated");
+      return;
+    }
+
+    showToast("No Canva design returned");
+    setStatus("No Canva design returned.", "needs-work");
+    resetGeneratedOutput("No Canva design returned. Try again.");
   } catch (error) {
     const message = error.name === "AbortError"
-      ? "Generation timed out after 60 seconds. Try a smaller image or a shorter twist."
+      ? "Generation timed out after 120 seconds. Try again, or reconnect Canva if the import was interrupted."
       : "Could not reach the generator. Check the connection and try again.";
     showToast(message);
     setStatus(message, "needs-work");
@@ -173,19 +225,29 @@ async function generate() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!generated || !generatedImageBlob) {
+  if (!generated) {
     showToast("Generate first");
     return;
   }
 
   submitButton.disabled = true;
   submitButton.textContent = "Submitting...";
-  setStatus("Submitting to approval...", "working");
+  const submitMessage = generated.status === "canva_imported"
+    ? "Exporting from Canva to approval..."
+    : "Submitting to approval...";
+  setStatus(submitMessage, "working");
 
   try {
     const payload = new FormData();
-    const imageName = `${generated.slug || "parody-output"}.${generatedImageBlob.type === "image/svg+xml" ? "svg" : "png"}`;
-    payload.set("image", generatedImageBlob, imageName);
+    if (generated.status === "canva_imported") {
+      if (!generated.canvaDesignId) throw new Error("Canva design ID missing. Generate again.");
+      payload.set("canvaDesignId", generated.canvaDesignId);
+      payload.set("canvaDesignUrl", generated.canvaDesignUrl || "");
+    } else {
+      if (!generatedImageBlob) throw new Error("Generate first");
+      const imageName = `${generated.slug || "parody-output"}.${generatedImageBlob.type === "image/svg+xml" ? "svg" : "png"}`;
+      payload.set("image", generatedImageBlob, imageName);
+    }
     payload.set("direction", directionInput.value.trim());
     payload.set("title", generated.title || "");
     payload.set("caption", generated.caption || "");
@@ -197,6 +259,11 @@ form.addEventListener("submit", async (event) => {
       body: payload
     });
     const data = await response.json().catch(() => ({ error: "Submit failed" }));
+    if (response.status === 401 && data.status === "needs_canva_auth" && data.authUrl) {
+      setStatus(data.message || "Reconnect Canva before submitting.", "working");
+      window.location.assign(data.authUrl);
+      return;
+    }
     if (!response.ok) throw new Error(data.error || "Submit failed");
 
     showToast("Submitted");
