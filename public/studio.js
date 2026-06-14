@@ -94,6 +94,19 @@ function showCanvaDesign(data) {
   `;
 }
 
+function showCanvaConnect(data, action = "Generate") {
+  generatedPreview.dataset.state = "done";
+  generatedPreview.innerHTML = `
+    <div class="canva-result">
+      <strong>Connect Canva</strong>
+      <p>Open Canva in a new tab, approve the connection, then come back here and click ${escapeHtml(action)} again.</p>
+      <div class="canva-actions">
+        <a class="button primary" href="${escapeHtml(data.authUrl || "/auth/canva")}" target="_blank" rel="noopener">Connect Canva</a>
+      </div>
+    </div>
+  `;
+}
+
 async function fetchWithTimeout(url, options = {}, timeoutMs = GENERATE_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -168,16 +181,11 @@ async function generate() {
     });
     const data = await response.json().catch(() => ({ error: "Generate failed" }));
     if (response.status === 401 && data.status === "needs_canva_auth" && data.authUrl) {
-      generatedPreview.dataset.state = "working";
-      generatedPreview.innerHTML = `
-        <div class="output-loading">
-          <span></span>
-          <strong>Connecting Canva...</strong>
-          <small>You will come back to Studio after Canva approves the session.</small>
-        </div>
-      `;
-      setStatus(data.message || "Connect Canva to generate.", "working");
-      window.location.assign(data.authUrl);
+      showCanvaConnect(data, "Generate");
+      generatedTitle.textContent = "Connect Canva";
+      generatedCaption.textContent = "Your upload stays here. Connect Canva in the new tab, then generate again.";
+      result.hidden = false;
+      setStatus(data.message || "Connect Canva to generate.", "needs-work");
       return;
     }
     if (!response.ok) {
@@ -260,8 +268,12 @@ form.addEventListener("submit", async (event) => {
     });
     const data = await response.json().catch(() => ({ error: "Submit failed" }));
     if (response.status === 401 && data.status === "needs_canva_auth" && data.authUrl) {
-      setStatus(data.message || "Reconnect Canva before submitting.", "working");
-      window.location.assign(data.authUrl);
+      showCanvaConnect(data, "Submit");
+      generatedTitle.textContent = "Reconnect Canva";
+      generatedCaption.textContent = "Connect Canva in the new tab, then submit again.";
+      result.hidden = false;
+      submitButton.disabled = false;
+      setStatus(data.message || "Reconnect Canva before submitting.", "needs-work");
       return;
     }
     if (!response.ok) throw new Error(data.error || "Submit failed");
