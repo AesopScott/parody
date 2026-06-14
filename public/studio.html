@@ -11,7 +11,7 @@
     <a class="brand" href="/">
       <span class="brand-mark">✱</span>
       <span>Parody AI Studio</span>
-      <span class="build-version">v0.1.5</span>
+      <span class="build-version">v0.2.0-canva</span>
     </a>
     <nav class="nav">
       <a href="/">Public site</a>
@@ -40,10 +40,11 @@
         </div>
 
         <div class="actions">
-          <button class="button primary" type="button" id="generate-button">Generate</button>
+          <a class="button primary" href="http://127.0.0.1:3001">Open Canva Factory</a>
+          <button class="button primary" type="button" id="generate-button">Generate in Canva</button>
           <button class="button" type="submit" id="submit-button" disabled>Submit</button>
         </div>
-        <p class="studio-status" id="studio-status" role="status" aria-live="polite">Ready.</p>
+        <p class="studio-status" id="studio-status" role="status" aria-live="polite">Use the Canva Factory for layout-accurate generation.</p>
       </form>
     </section>
 
@@ -53,7 +54,7 @@
         <h2 id="output-title">Output</h2>
       </div>
       <div class="generated-preview" id="generated-preview">
-        <span>Generate to see the parody image.</span>
+        <span>Layout-accurate output is generated in the local Canva Factory.</span>
       </div>
       <div class="caption-card studio-result" id="studio-result" hidden>
         <div class="caption-head">
@@ -66,6 +67,6 @@
   </main>
 
   <div class="toast" role="status" aria-live="polite">Done</div>
-  <script src="/studio.js?v=0.1.5"></script>
+  <script src="/studio.js?v=0.2.0-canva"></script>
 </body>
 </html>
